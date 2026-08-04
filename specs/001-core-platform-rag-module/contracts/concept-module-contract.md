@@ -23,6 +23,9 @@ export interface ConceptModule {
 
 - Exactly one array, `conceptRegistry: ConceptModule[]`, in
   `src/lib/concept-registry.ts`.
+- Every `ConceptModule.id` in `conceptRegistry` MUST be unique (FR-001);
+  two entries sharing an id is a registry-configuration error, not a
+  valid state.
 - The home page (`src/app/page.tsx`) and the dynamic concept route
   (`src/app/concepts/[conceptId]/page.tsx`) MUST render purely by
   mapping/looking up `conceptRegistry` -- no per-concept-id conditional
@@ -35,5 +38,6 @@ export interface ConceptModule {
 ## Verification
 
 `scripts/checks/no-cross-module-conditionals.ts` (new, this plan) enforces
-the "no conditional outside a concept's own folder" rule by static scan.
-See `automated-checks-contract.md`.
+both the "no conditional outside a concept's own folder" rule and the
+`conceptRegistry` id-uniqueness rule above, by static scan and by array
+inspection respectively. See `automated-checks-contract.md`.

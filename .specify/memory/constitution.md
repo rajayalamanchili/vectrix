@@ -70,10 +70,8 @@ in a system optimizing for perceived liveliness.
 
 ### VI. Spec Before Code, Same Discipline as Prior Work
 No module's implementation begins without an approved `spec.md`, followed
-by `plan.md` and `tasks.md`. This mirrors the discipline already applied
-to this project's sibling effort (the Steward governed-text-to-SQL
-platform) and exists for the same reason: catching real design gaps on
-paper is cheaper than catching them after code exists.
+by `plan.md` and `tasks.md`. This exists because catching real design
+gaps on paper is cheaper than catching them after code exists.
 
 **Rationale**: Consistency across projects lowers the cost of context-switching
 and keeps the discipline itself from being treated as optional

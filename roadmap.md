@@ -10,13 +10,20 @@ Success Criteria are met.
 ## Milestone 1: Core Platform + RAG Concept Module
 **Spec**: `specs/001-core-platform-rag-module/spec.md`
 **Status**: Prototype built and manually verified; formal spec authored
-after the fact (see "A note on sequencing" below) -- `/speckit.plan` and
-a proper `tasks.md` are the next steps, along with closing the gaps noted
-under Definition of Done. As of the 2026-08-03 `/speckit.clarify` pass,
-FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
-toggle) are confirmed still **unimplemented** in the shipped prototype --
-not merely unverified -- and are required Milestone-1 work, not deferred
-scope (see Definition of Done below).
+after the fact (see "A note on sequencing" below). `/speckit.plan` and
+`/speckit.tasks` have run and produced `plan.md`/`tasks.md` (57 tasks,
+30 done / 27 open); `/speckit.analyze` has run against them. As of the
+2026-08-03 `/speckit.clarify` pass, FR-013 (similarity-threshold
+control) and FR-014 (chunking-strategy toggle) are confirmed still
+**unimplemented** in the shipped prototype -- not merely unverified --
+and are required Milestone-1 work, not deferred scope. Two further
+2026-08-04 passes added scope beyond the original spec: a
+`/speckit.clarify` pass added FR-001's `ConceptModule.id` uniqueness
+rule, and a `/speckit-checklist` (`checklists/accessibility.md`) pass
+rewrote FR-011 and added smaller clauses to FR-005/FR-009/FR-014,
+producing `tasks.md`'s Phase 6.5 (five new tasks, T053-T057) -- see
+Definition of Done below for the full current gap, not just the
+original FR-013/FR-014 one.
 
 **Scope**: The `ConceptModule` contract and central registry; the RAG
 module's Pipeline Walkthrough (Document -> Chunking -> Embedding ->
@@ -52,12 +59,26 @@ variants).
 - User Story 4's contract (the `ConceptModule` interface + registry
   pattern) exists and type-checks; its full acceptance scenario is only
   verifiable once a second module exists (Milestone 5).
+- FR-001's `ConceptModule.id` uniqueness rule (added via `/speckit.clarify`
+  2026-08-04) MUST be enforced by the same automated check as SC-002,
+  not left to array-authorship discipline alone -- this is `tasks.md`
+  T048's expanded scope, not a separate script.
+- FR-005 (chart highlighting), FR-009 (Compare Variants keyboard/FIFO
+  scope), FR-011 (keyboard operability -- rewritten), and FR-014
+  (chunking-strategy toggle selected-state) were all refined or expanded
+  by the `checklists/accessibility.md` pass (2026-08-04). The concrete,
+  previously-nonexistent behavior this requires -- a global
+  focus-indicator style, a non-color chart marker, focus management
+  after a stepper jump and after the document/strategy-switch reset, and
+  an empty-state landmark -- is `tasks.md` Phase 6.5 (T053-T057) and is
+  required Milestone-1 work, not deferred scope, same as the FR-013/FR-014
+  gap above.
 
 **Explicitly not included**: a second concept module, any real
 embedding/LLM API integration, backend/persistence, deployment.
 
 ### A note on sequencing
-Unlike Steward, this project's Milestone 1 was prototyped first (to
+This project's Milestone 1 was prototyped first (to
 validate the design -- star-chart visualization, guided stepper,
 variants comparison -- was actually worth building) and the formal
 `spec.md`/constitution were written afterward, codifying what the
@@ -234,7 +255,12 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.3.0 -- 2026-08-03, Milestone 1's Definition of Done
-corrected: FR-013/FR-014 (similarity-threshold, chunking-strategy)
-confirmed unimplemented via `/speckit.clarify`, not merely unverified;
-SC-007/SC-008 depend on that build gap closing first
+**Version**: 1.4.0 -- 2026-08-04, Milestone 1's Definition of Done
+expanded: FR-001's registry id-uniqueness rule (`/speckit.clarify`) and
+the `checklists/accessibility.md`-driven FR-005/FR-009/FR-011/FR-014
+refinements (`/speckit-checklist`) added as required scope, alongside
+the FR-013/FR-014 gap already tracked since v1.3.0; `tasks.md`'s Phase
+6.5 (T053-T057) is the concrete work this adds. Supersedes 1.3.0
+(2026-08-03, FR-013/FR-014 confirmed unimplemented via `/speckit.clarify`,
+not merely unverified; SC-007/SC-008 depend on that build gap closing
+first).

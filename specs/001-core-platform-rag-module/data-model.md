@@ -14,7 +14,7 @@ Source of truth: `src/lib/concept-types.ts`.
 
 | Field | Type | Notes |
 |---|---|---|
-| `id` | `string` | URL-safe, used as `/concepts/[id]` route segment; unique within `conceptRegistry` (uniqueness enforced by array authorship today -- no runtime check exists, and none is required while the registry has one entry; revisit if a duplicate-id bug is ever observed with a second module in Milestone 5). |
+| `id` | `string` | URL-safe, used as `/concepts/[id]` route segment; MUST be unique within `conceptRegistry` (FR-001, added 2026-08-04). Enforced by an automated check, not just array authorship -- see the uniqueness rule added to `check:extensibility` in `contracts/automated-checks-contract.md`. |
 | `title` | `string` | Display name. |
 | `tagline` | `string` | One-line hook, home page card. |
 | `description` | `string` | 2-4 sentences, home page card + concept header. |

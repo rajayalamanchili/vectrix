@@ -117,6 +117,41 @@ resolved the open design questions (range/scale, algorithm); this
 section exists only to record where in Technical Context this
 information originates.
 
+## Decision: `ConceptModule.id` uniqueness check (FR-001, added 2026-08-04)
+
+**Decision**: Extend `scripts/checks/no-cross-module-conditionals.ts`
+(SC-002's existing script) with a second, independent rule: fail if
+`conceptRegistry` contains two entries sharing an `id`. Same script, same
+exit code, not a fifth check.
+
+**Rationale**: `/speckit.clarify`'s 2026-08-04 pass added FR-001's
+uniqueness requirement and a matching Edge Case, explicitly modeled on
+SC-002's "fail-fast, automated, not just by inspection" bar. The
+uniqueness check reads the same `conceptRegistry` array the extensibility
+scan already imports, so folding it into the same script avoids a
+second, near-identical script for a one-line `Set`-size check. The
+registry has one entry today, so this check is a regression guard for
+Milestone 5 (second module), not something expected to catch anything
+yet.
+
+**Alternatives considered**: A separate `check:registry-uniqueness`
+script -- rejected as unnecessary process/file overhead for a
+single-array-length check that already has a natural home in the script
+that already reads the same array.
+
+## Note: FR-013/Top-K composition order (verified 2026-08-04)
+
+During `/speckit.plan`, a transient inconsistency was caught and fixed:
+an earlier `/speckit.clarify` edit to spec.md's FR-013 briefly stated the
+opposite composition order (rank -> take Top-K -> filter by threshold)
+from the one already decided just above (filter -> take Top-K) and
+already implemented in tasks.md's T028. spec.md FR-013 has been corrected
+back to match this section's original decision and T028; no design
+change was needed here, only a spec-text correction. Filter-before-Top-K
+remains correct because it's what makes SC-007 (threshold empties the
+result independent of Top-K) and the "raising the threshold can surface
+a previously-excluded lower-ranked chunk" behavior both reachable.
+
 ## Decision: Document-switch and strategy-switch stale-state reset
 
 **Decision**: A single `useEffect` in `PipelineWalkthrough.tsx` keyed on
