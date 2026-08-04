@@ -1,6 +1,6 @@
 "use client";
 
-import { sampleDocs, chunkText } from "../../lib/sampleDocs";
+import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy } from "../../lib/sampleDocs";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { Slider } from "@/components/ui/Slider";
 import { Badge } from "@/components/ui/Badge";
@@ -12,21 +12,33 @@ const CHUNK_COLORS = [
   "bg-query-amber/10",
 ];
 
+const STRATEGY_OPTIONS: { id: ChunkingStrategy; label: string; name: string }[] = [
+  { id: "fixed", label: "Fixed-size", name: "Fixed-size chunking strategy" },
+  { id: "sentence", label: "Sentence-boundary", name: "Sentence-boundary chunking strategy" },
+];
+
 export function ChunkingStep({
   docId,
   chunkSize,
   overlap,
+  chunkingStrategy,
   onChunkSize,
   onOverlap,
+  onChunkingStrategy,
 }: {
   docId: string;
   chunkSize: number;
   overlap: number;
+  chunkingStrategy: ChunkingStrategy;
   onChunkSize: (v: number) => void;
   onOverlap: (v: number) => void;
+  onChunkingStrategy: (s: ChunkingStrategy) => void;
 }) {
   const doc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
-  const chunks = chunkText(doc.text, chunkSize, overlap);
+  const chunks =
+    chunkingStrategy === "sentence"
+      ? chunkTextBySentence(doc.text, chunkSize, overlap)
+      : chunkText(doc.text, chunkSize, overlap);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
@@ -51,6 +63,25 @@ export function ChunkingStep({
             onChange={onOverlap}
             tone="query"
           />
+        </div>
+
+        <div className="mb-5 flex gap-2" role="group" aria-label="Chunking strategy">
+          {STRATEGY_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChunkingStrategy(opt.id)}
+              aria-pressed={chunkingStrategy === opt.id}
+              aria-label={opt.name}
+              className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                chunkingStrategy === opt.id
+                  ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
+                  : "border-chart-line text-ink-500 hover:text-ink-300"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         <div className="mb-2 flex items-center gap-2">
@@ -88,6 +119,12 @@ export function ChunkingStep({
         <p className="mt-3">
           Try dragging chunk size down to ~30 words -- notice how a single
           idea can end up split across two chunks.
+        </p>
+        <p className="mt-3">
+          Fixed-size chunking can cut a sentence in half at the boundary.
+          Sentence-boundary chunking never does that -- it groups whole
+          sentences instead, at the cost of chunks that vary more in
+          length. Toggle between them at the same chunk size to compare.
         </p>
       </Marginalia>
     </div>

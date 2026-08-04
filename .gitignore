@@ -5,3 +5,8 @@ node_modules
 *.pem
 npm-debug.log*
 .claude/
+*.tsbuildinfo
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

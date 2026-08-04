@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { sampleDocs, chunkText } from "../../lib/sampleDocs";
+import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy } from "../../lib/sampleDocs";
 import { embed } from "../../lib/mockEmbedding";
 import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
@@ -10,13 +10,18 @@ export function EmbeddingStep({
   docId,
   chunkSize,
   overlap,
+  chunkingStrategy,
 }: {
   docId: string;
   chunkSize: number;
   overlap: number;
+  chunkingStrategy: ChunkingStrategy;
 }) {
   const doc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
-  const chunks = chunkText(doc.text, chunkSize, overlap);
+  const chunks =
+    chunkingStrategy === "sentence"
+      ? chunkTextBySentence(doc.text, chunkSize, overlap)
+      : chunkText(doc.text, chunkSize, overlap);
 
   const points: StarPoint[] = useMemo(
     () =>
@@ -39,7 +44,7 @@ export function EmbeddingStep({
           -- similar chunks land near each other. This chart projects that
           down to 2D so you can see it directly.
         </p>
-        <p className="mt-3 text-ink-500">
+        <p className="mt-3 text-ink-500" data-simulated-disclosure="true">
           <em>
             Simplified for teaching: this uses a lightweight word-overlap
             projection, not a real embedding model, so the geometry is

@@ -19,7 +19,9 @@ export function DocumentStep({
           {sampleDocs.map((d) => (
             <button
               key={d.id}
+              data-doc-chip={d.id}
               onClick={() => onSelect(d.id)}
+              aria-pressed={d.id === docId}
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 d.id === docId
                   ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
