@@ -34,7 +34,12 @@ decisions.
   later — specifically the automated checks for SC-002 (zero
   cross-module conditionals), SC-003 (simulated-behavior disclosure),
   and SC-005 (keyboard accessibility), which do not exist yet as of this
-  writing.
+  writing. There's also an actual build gap, not just a verification
+  gap: FR-013 (similarity-threshold control) and FR-014
+  (chunking-strategy toggle) are written into `spec.md` but confirmed,
+  via the 2026-08-03 `/speckit.clarify` pass, to not exist in the
+  shipped prototype at all — close that before treating SC-007/SC-008 as
+  even checkable.
 - **`tech-stack.md` is locked, not a suggestion.** Don't introduce a
   charting library, state management library, or alternate styling
   approach without first updating `tech-stack.md` and stating why.
@@ -79,4 +84,10 @@ existing module) or the disclosure language for simulated behavior.
   (determinism across ten repeated runs) hasn't been explicitly
   re-verified since the last code change. Treat these as the first
   backlog items, not as already-closed.
+- FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
+  toggle) are also unbuilt, not merely unverified — confirmed by the
+  2026-08-03 `/speckit.clarify` pass. Only fixed-size chunking and a
+  Top-K slider exist in the shipped prototype today. SC-007 and SC-008
+  can't be verified until these are built, since they test behavior
+  those two controls are responsible for.
 

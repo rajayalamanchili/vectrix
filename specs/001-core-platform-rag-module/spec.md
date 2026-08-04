@@ -10,6 +10,40 @@
 Retrieval-Augmented Generation concept module (pipeline walkthrough and
 variant comparison views)"
 
+## Clarifications
+
+### Session 2026-08-03
+
+- Q: When a learner switches to a different sample document after already
+  generating retrieval results for the previous document, should the app
+  auto-clear those now-stale results, the same way it's required to do
+  when the chunking strategy changes? → A: Auto-clear query, results, and
+  step position -- switching documents resets query text, retrieved
+  results, and returns the stepper to the Document step, consistent with
+  the existing chunking-strategy-switch rule.
+- Q: For FR-014's sentence-boundary chunking strategy, how should the
+  existing chunk-size setting (a word count) determine boundaries, since
+  a pure sentence split doesn't naturally respect a word count the way
+  fixed-size chunking does? → A: Split the document into sentences
+  first, then greedily group consecutive sentences into a chunk until
+  adding the next sentence would exceed the chunk-size word count, then
+  start a new chunk -- keeps the size slider's meaning comparable across
+  both strategies.
+- Q: What numeric range and default value should the similarity-
+  threshold slider (FR-013) use, given cosine-similarity scores over
+  this app's bag-of-words vectors are always non-negative? → A: 0.00-1.00
+  raw score, default 0 -- matches the exact scale already shown next to
+  each ranked result, and a default of 0 leaves the threshold fully open
+  (no filtering) so it doesn't change existing default retrieval
+  behavior.
+- Q: Neither FR-013 (similarity-threshold control) nor FR-014
+  (chunking-strategy toggle) exist in the shipped code yet, despite
+  being written into this spec's requirements and Success Criteria.
+  Should closing them be treated as required Milestone-1 work? → A: Yes
+  -- both were deliberately added to this approved spec during the
+  parameter-impact review, not accidentally; they remain required
+  Milestone-1 Definition-of-Done items, not deferred scope.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Work through the RAG pipeline hands-on (Priority: P1)
@@ -180,14 +214,25 @@ with no per-module conditionals elsewhere.
 - How does the layout behave at a narrow (mobile-width) viewport? (Must
   remain readable and operable, not merely "not crash.")
 - What happens when the similarity threshold is set to its minimum
-  (effectively disabled) versus its maximum (excludes everything)? (Both
-  ends must be reachable and must produce a coherent result -- all
-  candidates at minimum, none at maximum -- not a clamped or ignored
-  value.)
+  (effectively disabled) versus its maximum (excludes everything short of
+  a perfect match)? (Both ends must be reachable and must produce a
+  coherent result -- all candidates at minimum; at maximum, every chunk
+  is excluded except one whose similarity score is an exact 1.00 match
+  to the query, which the shipped sample fixtures never produce -- not a
+  clamped or ignored value. See FR-013 for why the comparison is
+  inclusive and why that makes this the correct outcome rather than a
+  conflict.)
 - What happens if a learner switches chunking strategy after already
   having retrieval results from the previous strategy? (The Retrieval
   and Generation steps must re-run against the new chunk set, not show
   stale results computed from chunks that no longer exist.)
+- What happens if a learner switches to a different sample document
+  after already having retrieval results from the previous document?
+  (The query text, retrieved results, and stepper position MUST all
+  reset to their defaults and return to the Document step -- the same
+  stale-state rule that applies to a chunking-strategy switch, so
+  Generation never displays a prompt built from a different document's
+  chunks.)
 
 ## Requirements *(mandatory)*
 
@@ -199,7 +244,15 @@ with no per-module conditionals elsewhere.
 - **FR-002**: The system MUST render the home page's module list and
   every concept's route purely by reading a single central registry of
   `ConceptModule` entries -- no file outside a concept's own folder may
-  contain a per-concept conditional (e.g. `if (id === "rag")`).
+  contain a per-concept conditional: code whose branch is selected by
+  comparing a value against a specific, hardcoded concept id literal
+  (e.g. `if (id === "rag")`, a `switch` case naming a literal id, or a
+  lookup table keyed by literal ids). Iterating or looking up over the
+  registry using a runtime-supplied id -- `conceptRegistry.map(...)`,
+  `getConcept(id)`, `key={c.id}` -- is not a per-concept conditional,
+  since no concept's specific id is named in the comparison; it's the
+  literal-id comparison that the extensibility contract prohibits
+  outside a concept's own folder.
 - **FR-003**: The RAG module MUST provide a Pipeline Walkthrough view with
   five sequential steps -- Document, Chunking, Embedding, Retrieval,
   Generation -- navigable via a stepper that allows jumping to any step
@@ -220,9 +273,15 @@ with no per-module conditionals elsewhere.
   that is explicitly labeled as simulated, with the code path for
   substituting a real model call clearly documented at that one seam.
 - **FR-008**: The RAG module MUST provide a Compare Variants view listing
-  naive RAG (baseline) plus at least five named variants (HyDE,
-  RAG-Fusion, GraphRAG, Self-RAG, Agentic RAG), each with a flow diagram
-  that visually distinguishes stages that differ from naive RAG.
+  naive RAG (baseline) plus these five specific named variants: HyDE,
+  RAG-Fusion, GraphRAG, Self-RAG, and Agentic RAG -- each with a flow
+  diagram that visually distinguishes stages that differ from naive RAG.
+  These five are a required minimum, not interchangeable examples of a
+  category: User Story 3 names this exact set as what the learner comes
+  to understand, so a different set of five variants would not satisfy
+  this requirement even though it would satisfy a plain "at least five"
+  reading. Additional variants beyond these five MAY be added without
+  violating this requirement.
 - **FR-009**: The Compare Variants view MUST support selecting exactly two
   variants for a side-by-side detailed comparison (problem addressed, how
   it works, trade-off), with a documented rule for what happens on a
@@ -238,13 +297,25 @@ with no per-module conditionals elsewhere.
   for any animation or transition.
 - **FR-013**: The Retrieval step MUST provide a similarity-threshold
   control, independent of Top-K, that filters the retrieved set to only
-  chunks meeting or exceeding the threshold -- the retrieved list MAY be
-  smaller than Top-K, including empty, when the threshold is strict
-  enough that fewer chunks qualify.
+  chunks meeting or exceeding the threshold (an inclusive `>=`
+  comparison) -- the retrieved list MAY be smaller than Top-K, including
+  empty, when the threshold is strict enough that fewer chunks qualify.
+  The control MUST use a 0.00-1.00 raw cosine-similarity scale (the same
+  units already shown next to each ranked result) and MUST default to 0
+  (fully open, no filtering) so existing default retrieval behavior is
+  unchanged. The comparison MUST stay inclusive at both ends: a
+  zero-scoring chunk has to pass at the default-0 threshold, which is
+  only possible with `>=`, and that same inclusive comparison is what
+  necessarily admits a perfect (1.00) match at the maximum threshold too
+  -- see Edge Cases for the reachability consequence.
 - **FR-014**: The Chunking step MUST offer at least two distinct chunking
   strategies (fixed-size word chunking and sentence-boundary chunking)
   as a learner-selectable toggle, applied to the same source document, so
-  the resulting chunk boundaries are directly comparable.
+  the resulting chunk boundaries are directly comparable. Sentence-
+  boundary chunking MUST split the document into sentences first, then
+  greedily group consecutive sentences into a chunk until adding the
+  next sentence would exceed the chunk-size word count, then start a new
+  chunk -- so the same chunk-size setting governs both strategies.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -274,7 +345,9 @@ with no per-module conditionals elsewhere.
 - **SC-002**: Adding a second concept module requires changes in exactly
   one existing file (the registry) plus new files inside that module's
   own new folder -- verified by an automated check that scans existing
-  concept and core files for per-module conditionals.
+  concept and core files for per-module conditionals, using FR-002's
+  definition of a per-concept conditional (a hardcoded-literal-id
+  comparison, not registry iteration/lookup by a runtime id).
 - **SC-003**: Every simulated or mocked AI behavior in the module (the
   embedding projection, the generated answer) is verified, via an
   automated content check, to carry an explicit "simulated" disclosure

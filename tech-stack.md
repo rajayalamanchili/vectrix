@@ -37,16 +37,25 @@ without amending it first fails the Constitution Check.
 | Type checking | `tsc` via `next build` | The `ConceptModule` contract's enforcement depends on this running cleanly on every change. |
 | Lint | ESLint (`eslint-config-next`) | Ships with the framework; no additional config needed for Milestone 1. |
 | Visual/behavioral verification | Playwright, driven manually during development | Used to verify each pipeline step and the variants comparison actually render and update correctly; not yet wired into CI (candidate for Milestone 2, see roadmap.md). |
-| Extensibility regression check (SC-002) | A test that scans core files (home page, registry, dynamic route) for concept-id-keyed conditionals | Not yet implemented as of Milestone 1's initial build -- tracked as a required task before Milestone 1 is considered done (see roadmap.md). |
+| Extensibility regression check (SC-002) | A standalone `tsx`-run script (`scripts/checks/no-cross-module-conditionals.ts`) that scans core files (home page, registry, dynamic route) for concept-id-keyed conditionals | Decided during `001-core-platform-rag-module`'s `/speckit.plan` (2026-08-03): a small purpose-built script, not a full test framework, so Milestone 6's later framework choice isn't pre-empted. See that feature's `research.md`. |
+| Disclosure regression check (SC-003) | A standalone `tsx`-run script (`scripts/checks/simulated-disclosure.ts`) using `react-dom/server`'s `renderToStaticMarkup` to assert a `data-simulated-disclosure` marker is present with non-empty text | Same decision as above; static-render is sufficient since disclosure is static text, not an interaction. |
+| Accessibility regression check (SC-005) | Playwright (`tests/a11y/keyboard-operability.spec.ts`) + `@axe-core/playwright`, run as a committed script rather than manually | Same decision; this is the one check needing real browser keyboard/focus behavior, which is why it promotes Playwright from "driven manually" to committed for this specific check only. |
+| Determinism regression check (SC-006) | A standalone `tsx`-run script (`scripts/checks/determinism.ts`) that runs the pure chunk/embed/rank pipeline ten times against a fixed fixture and diffs output | Same decision; pure-function re-verification needs no browser or DOM. |
 
 ## Explicitly not yet decided (do not pre-select)
 
-- Testing framework for automated (non-manual-Playwright) checks --
-  decide when SC-002/SC-003/SC-005's automated checks are actually built.
+- Project-wide, CI-wired testing framework (Milestone 6 scope) -- the
+  four checks above close Milestone 1's specific SC-002/003/005/006 gap
+  with narrowly-scoped scripts; which framework unifies verification
+  across Milestones 1-5 under CI is still open, per roadmap.md Milestone
+  6.
 - Deployment target -- deferred until there's a reason to deploy rather
   than run locally / in Claude Code.
 - Any backend, database, or auth -- out of scope per spec.md Assumptions
   until a future module genuinely needs one (e.g. a concept requiring
   saved learner progress).
 
-**Version**: 1.0.0 -- Locked 2026-08-03, scoped to Milestone 1
+**Version**: 1.1.0 -- 2026-08-03, Milestone 1's four automated checks
+(SC-002/003/005/006) decided during `001-core-platform-rag-module`'s
+`/speckit.plan`; narrowed the project-wide testing-framework decision to
+Milestone 6 scope specifically

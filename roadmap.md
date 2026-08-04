@@ -12,7 +12,11 @@ Success Criteria are met.
 **Status**: Prototype built and manually verified; formal spec authored
 after the fact (see "A note on sequencing" below) -- `/speckit.plan` and
 a proper `tasks.md` are the next steps, along with closing the gaps noted
-under Definition of Done.
+under Definition of Done. As of the 2026-08-03 `/speckit.clarify` pass,
+FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
+toggle) are confirmed still **unimplemented** in the shipped prototype --
+not merely unverified -- and are required Milestone-1 work, not deferred
+scope (see Definition of Done below).
 
 **Scope**: The `ConceptModule` contract and central registry; the RAG
 module's Pipeline Walkthrough (Document -> Chunking -> Embedding ->
@@ -25,17 +29,26 @@ variants).
 - All acceptance scenarios in `spec.md` User Stories 1-3 pass, including
   the similarity-threshold and chunking-strategy scenarios added during
   the parameter-impact review.
+- FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
+  toggle) MUST actually be built -- confirmed via `/speckit.clarify` on
+  2026-08-03 that these are not yet implemented at all in the shipped
+  prototype (only fixed-size chunking and a Top-K slider exist today),
+  and that they remain required Milestone-1 scope rather than being
+  silently deferred. This is a build gap, not just a verification gap,
+  and it's a prerequisite for SC-007/SC-008 below.
 - SC-001, SC-004, and SC-006 verified manually (done for SC-001/SC-004 via
   Playwright screenshots during the build; SC-006 -- determinism across
   repeated runs -- not yet explicitly re-verified across ten runs).
   SC-007 and SC-008 (threshold-empties-results and chunking-strategy
   produces different boundaries) are new as of the parameter-impact
-  review and not yet verified at all.
+  review and cannot be verified at all until the FR-013/FR-014 build gap
+  above is closed.
 - SC-002, SC-003, SC-005 each need an actual automated check written --
   today they hold true by inspection/design, not by a test that would
-  catch a future regression. This is the concrete gap to close before
-  calling Milestone 1 truly done, and it's the first thing `/speckit.tasks`
-  should generate tasks for.
+  catch a future regression. This, together with the FR-013/FR-014 build
+  gap above, is the concrete work to close before calling Milestone 1
+  truly done, and it's the first thing `/speckit.tasks` should generate
+  tasks for.
 - User Story 4's contract (the `ConceptModule` interface + registry
   pattern) exists and type-checks; its full acceptance scenario is only
   verifiable once a second module exists (Milestone 5).
@@ -221,6 +234,7 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.2.0 -- 2026-08-03, Milestones 3 (Parameter Exploration &
-Sharing) and 4 (Real Mode Depth) inserted; former Milestones 3-4
-renumbered to 5-6
+**Version**: 1.3.0 -- 2026-08-03, Milestone 1's Definition of Done
+corrected: FR-013/FR-014 (similarity-threshold, chunking-strategy)
+confirmed unimplemented via `/speckit.clarify`, not merely unverified;
+SC-007/SC-008 depend on that build gap closing first
