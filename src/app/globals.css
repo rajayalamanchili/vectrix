@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Design tokens -- "star chart" identity for the AI Engineering
+   Playground. Colors are meaningful, not decorative:
+     - ink / chart tones  -> the "paper" the chart is drawn on
+     - teal (--doc-teal)  -> document / chunk / corpus elements
+     - amber (--query-amber) -> query / retrieval / active-beacon elements
+   See README.md for the full token rationale.
+------------------------------------------------------------------*/
+:root {
+  --chart-bg: #0e1420;
+  --chart-bg-raised: #141b2b;
+  --chart-grid: #1c2636;
+  --chart-line: #2a3548;
+
+  --ink-100: #edeff2;
+  --ink-300: #b7bfca;
+  --ink-500: #8b95a1;
+  --ink-700: #5b6474;
+
+  --doc-teal: #2fb8ac;
+  --doc-teal-dim: #1f6f68;
+  --query-amber: #e8a23d;
+  --query-amber-dim: #8a621f;
+
+  --danger: #d9584f;
+  --success: #4caf7d;
+}
+
+@theme inline {
+  --color-chart-bg: var(--chart-bg);
+  --color-chart-bg-raised: var(--chart-bg-raised);
+  --color-chart-grid: var(--chart-grid);
+  --color-chart-line: var(--chart-line);
+
+  --color-ink-100: var(--ink-100);
+  --color-ink-300: var(--ink-300);
+  --color-ink-500: var(--ink-500);
+  --color-ink-700: var(--ink-700);
+
+  --color-doc-teal: var(--doc-teal);
+  --color-doc-teal-dim: var(--doc-teal-dim);
+  --color-query-amber: var(--query-amber);
+  --color-query-amber-dim: var(--query-amber-dim);
+
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+
+  /* Fallback stacks that don't require a network font fetch. Swap for
+     var(--font-fraunces) / var(--font-inter) / var(--font-plex-mono)
+     once next/font/google is restored (see README.md). */
+  --font-display: Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+  --font-body: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+}
+
+html,
+body {
+  background: var(--chart-bg);
+  color: var(--ink-100);
+}
+
+body {
+  font-family: var(--font-body);
+}
+
+::selection {
+  background: var(--query-amber-dim);
+  color: var(--ink-100);
+}
+
+/* Subtle chart-grid texture used behind hero / chart panels */
+.bg-chart-grid {
+  background-image:
+    linear-gradient(var(--chart-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--chart-grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
