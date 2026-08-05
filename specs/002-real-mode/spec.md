@@ -4,12 +4,40 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- pending `/speckit.clarify`
+**Status**: Draft -- clarified 2026-08-05, pending `/speckit.plan`
 
 **Input**: User description: "Opt-in Real Mode for the RAG concept module:
 bring-your-own API key for real embeddings and generation, real document
 input, executable RAG variants, and lightweight evaluation -- layered on
 top of the existing Simulated Mode without replacing it"
+
+## Clarifications
+
+### Session 2026-08-05
+
+- Q: Should this spec add an explicit accessibility requirement (FR +
+  Success Criterion) covering Real Mode's new controls (toggle, key
+  input, temperature slider, RAG-Fusion N control, HyDE count control,
+  document textarea), the same way Milestone 1's spec.md called out
+  FR-011/SC-005 for its own controls? → A: Yes -- add an explicit FR
+  plus a corresponding Success Criterion, mirroring Milestone 1's
+  precedent.
+- Q: For Real Mode's custom document input, should the spec support only
+  pasted text, or both paste and file upload (User Story 3's title said
+  "paste or upload," while FR-005 only covered pasted text)? → A: Paste
+  only -- narrow US3's title to match FR-005; file upload is out of
+  scope for this milestone.
+- Q: FR-011's recall@K evaluation doesn't say where K comes from --
+  should it reuse the pipeline's existing Top-K retrieval slider, or is
+  eval K a separate, independently-configured parameter? → A: Reuse the
+  existing Top-K slider; K is not a separate eval-only parameter.
+- Q: FR-010's "rough cost indication" doesn't say what it's based on --
+  should this milestone show a static per-provider $ estimate, or call
+  count only? → A: Call count only, no dollar figure; $ pricing is
+  Milestone 4 scope.
+- Q: FR-005 requires a "stated size limit" on pasted custom documents
+  but doesn't give a number -- what should that limit be? → A: 10,000
+  characters.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -85,8 +113,8 @@ disclosed as real (the inverse disclosure of Constitution Principle II).
 
 ### User Story 3 - Use your own document and question (Priority: P2)
 
-A practitioner wants to paste or upload their own text and ask their own
-question, instead of only the two built-in sample documents.
+A practitioner wants to paste their own text and ask their own question,
+instead of only the two built-in sample documents.
 
 **Why this priority**: Necessary for Real Mode to be useful for actual
 evaluation work, but depends on User Story 2's real embeddings existing
@@ -104,10 +132,10 @@ documents.
    document text, **Then** the Document step accepts it and every
    downstream step (Chunking, Embedding, Retrieval, Generation) uses it
    in place of the sample documents.
-2. **Given** a pasted document exceeds a reasonable size limit, **When**
-   the learner submits it, **Then** the app rejects it with a clear
-   message stating the limit, rather than silently truncating it or
-   sending an oversized request to the API.
+2. **Given** a pasted document exceeds 10,000 characters, **When** the
+   learner submits it, **Then** the app rejects it with a clear message
+   stating the limit, rather than silently truncating it or sending an
+   oversized request to the API.
 
 ---
 
@@ -180,8 +208,9 @@ question -- rather than only showing the static explanatory flow diagram.
    fusion step is inspectable rather than a black box.
 3. **Given** a variant that requires more API calls than naive RAG
    (HyDE, RAG-Fusion), **When** the learner is about to run it, **Then**
-   an estimated call count and rough cost indication is shown before the
-   calls are made, not only after.
+   an estimated call count is shown before the calls are made, not only
+   after (call count only -- no dollar estimate this milestone; see
+   FR-010).
 4. **Given** GraphRAG, Self-RAG, or Agentic RAG are selected in Real
    Mode, **When** the learner tries to run them, **Then** the app is
    explicit about which of these are actually executable in this
@@ -282,8 +311,8 @@ and see a simple recall@K number for each, side by side.
   Simulated Mode's disclosure requirement from Constitution Principle II.
 - **FR-005**: The system MUST let a learner replace the built-in sample
   document and questions with pasted custom text and a custom question in
-  Real Mode, subject to a stated size limit enforced before any API call
-  is made.
+  Real Mode, subject to a 10,000-character limit enforced before any API
+  call is made.
 - **FR-006**: The Generation step, when Real Mode is active, MUST send
   the exact displayed assembled prompt to a real model and display its
   actual response, labeled as real.
@@ -302,10 +331,18 @@ and see a simple recall@K number for each, side by side.
 - **FR-010**: Before executing any variant requiring more than one
   embedding/generation call (HyDE, RAG-Fusion), the system MUST show an
   estimated call count to the learner before making any of those calls.
+  This milestone shows call count only, with no dollar-cost estimate --
+  a static per-provider pricing table and $-denominated cost tracking
+  are Milestone 4 scope (`specs/004-real-mode-depth/spec.md`), not
+  duplicated here.
 - **FR-011**: The system MUST let a learner define a small set of
   (question, expected chunk) pairs and compute a recall@K score, with the
   scoring method named in the UI, for naive RAG and at least one
-  executable variant, shown side by side.
+  executable variant, shown side by side. K MUST be the same Top-K value
+  currently set on the pipeline's Retrieval step (spec.md 001's Top-K
+  slider), not a separate eval-only parameter -- so changing Top-K
+  visibly changes the recall@K score, directly demonstrating the
+  relationship between the two.
 - **FR-012**: The Generation step, when Real Mode is active, MUST expose
   a learner-adjustable temperature control that is passed through to the
   real model call, with its range and default documented in the UI.
@@ -316,6 +353,13 @@ and see a simple recall@K number for each, side by side.
   answer when configured to do so, with each generated hypothetical
   answer individually visible to the learner, not only a single averaged
   result.
+- **FR-015**: Every new Real Mode control (the Real Mode toggle, the API
+  key input, the temperature control, RAG-Fusion's N control, HyDE's
+  hypothetical-answer-count control, and the custom document/question
+  input) MUST be operable via keyboard alone and MUST have an accessible
+  name that describes its specific effect, matching the standard set by
+  spec.md 001's FR-011 rather than introducing a lower bar for
+  Real-Mode-only controls.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -348,8 +392,8 @@ and see a simple recall@K number for each, side by side.
   inactive -- verified by re-running Milestone 1's full
   acceptance-scenario suite after this feature ships.
 - **SC-002**: A learner who has never used Real Mode is not prompted for
-  an API key, document upload, or any Real-Mode-specific input at any
-  point while using Simulated Mode.
+  an API key, custom document input, or any Real-Mode-specific input at
+  any point while using Simulated Mode.
 - **SC-003**: With a valid API key configured, a learner can go from
   activating Real Mode to seeing a real, disclosed-as-real embedding
   chart in under 60 seconds.
@@ -376,6 +420,10 @@ and see a simple recall@K number for each, side by side.
   RAG-Fusion's query-variant count (N) produces a measurably different
   fused ranking, and the estimated-call-count shown to the learner
   before execution matches the actual number of calls made.
+- **SC-009**: Every new Real Mode control (FR-015) is reachable and
+  operable via keyboard alone and exposes an accessible name -- verified
+  by the same class of automated check used for spec.md 001's SC-005,
+  extended to cover Real Mode's controls.
 
 ## Assumptions
 
