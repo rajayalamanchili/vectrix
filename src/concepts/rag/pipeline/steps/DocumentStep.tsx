@@ -19,7 +19,9 @@ export function DocumentStep({
           {sampleDocs.map((d) => (
             <button
               key={d.id}
+              data-doc-chip={d.id}
               onClick={() => onSelect(d.id)}
+              aria-pressed={d.id === docId}
               className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 d.id === docId
                   ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
@@ -30,7 +32,12 @@ export function DocumentStep({
             </button>
           ))}
         </div>
-        <div className="max-h-[340px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink-300 font-body">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label={`${doc.title} full text`}
+          className="max-h-[340px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink-300 font-body"
+        >
           {doc.text}
         </div>
       </Panel>

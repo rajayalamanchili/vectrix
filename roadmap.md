@@ -9,14 +9,46 @@ Success Criteria are met.
 
 ## Milestone 1: Core Platform + RAG Concept Module
 **Spec**: `specs/001-core-platform-rag-module/spec.md`
-**Status**: Prototype built and manually verified; formal spec authored
-after the fact (see "A note on sequencing" below) -- `/speckit.plan` and
-a proper `tasks.md` are the next steps, along with closing the gaps noted
-under Definition of Done. As of the 2026-08-03 `/speckit.clarify` pass,
-FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
-toggle) are confirmed still **unimplemented** in the shipped prototype --
-not merely unverified -- and are required Milestone-1 work, not deferred
-scope (see Definition of Done below).
+**Status**: `/speckit.implement` has run (2026-08-04). FR-013
+(similarity-threshold), FR-014 (chunking-strategy toggle, incl.
+`aria-pressed`), FR-001 (registry id-uniqueness), and all of Phase 6.5's
+accessibility-closure work (focus-indicator CSS, non-color chart marker,
+focus management after a stepper jump and after the document/strategy
+auto-reset, empty-list landmark) are now built -- `tsc --noEmit` and
+`eslint` both pass clean. All four automated checks
+(`check:extensibility`, `check:disclosure`, `check:determinism`,
+`check:a11y`) now run and pass.
+
+**Update (2026-08-05)**: the prior root/sudo gap is closed (Chromium's
+system libraries were installed via `sudo npx playwright install-deps
+chromium` in a session with sudo access). `check:a11y` (T034/T043's 14
+Playwright tests) ran for real for the first time and initially failed
+5 of 14 -- genuine defects invisible to static `playwright test --list`
+validation, not environment noise: an axe heading-order violation and a
+broken FIFO-replacement flow in Compare Variants, a non-focusable
+scrollable region on the Document step, and (the most significant) the
+Chunking step's strategy toggle resetting query/stepper state on every
+switch, contradicting spec.md's own Edge Cases section, plus a
+resulting stepper-jump focus-target bug on the Retrieval step. All 5
+are now fixed; `check:a11y` passes 14/14, re-run twice with no flake.
+T036 (US1's manual-scenario walkthrough) is done, including the two
+scenarios not covered by the Playwright specs' assertions
+(chunking-strategy boundary difference, non-color chart distinction
+under emulated color-vision deficiency), verified with an ad hoc script
+against the dev server. T044 (US3's manual-scenario walkthrough) is
+also done, verified via mouse-click interaction (not just keyboard) --
+all four of spec.md US3's acceptance scenarios confirmed, including
+that the FIFO-replacement fix from T036 holds for mouse input too, not
+only keyboard. **T051 (the final `npm run check:all` + full
+quickstart.md manual-scenario re-run) is also done -- all 57 of 57
+tasks in `tasks.md` are complete, and Milestone 1's Definition of Done
+is met.** T051's pass re-confirmed the two quickstart.md scenarios not
+directly exercised by T036/T044 -- US1's full 5-step pipeline and US2's
+home page discovery -- against a real browser for the first time (their
+only prior evidence was a historical "verified via Playwright
+screenshots during the original build" claim); no further defects
+found. See `tasks.md` T036/T044/T051 for the full defect list and
+fixes, and `tasks.md` for the full 57-task breakdown.
 
 **Scope**: The `ConceptModule` contract and central registry; the RAG
 module's Pipeline Walkthrough (Document -> Chunking -> Embedding ->
@@ -30,34 +62,61 @@ variants).
   the similarity-threshold and chunking-strategy scenarios added during
   the parameter-impact review.
 - FR-013 (similarity-threshold control) and FR-014 (chunking-strategy
-  toggle) MUST actually be built -- confirmed via `/speckit.clarify` on
-  2026-08-03 that these are not yet implemented at all in the shipped
-  prototype (only fixed-size chunking and a Top-K slider exist today),
-  and that they remain required Milestone-1 scope rather than being
-  silently deferred. This is a build gap, not just a verification gap,
-  and it's a prerequisite for SC-007/SC-008 below.
-- SC-001, SC-004, and SC-006 verified manually (done for SC-001/SC-004 via
-  Playwright screenshots during the build; SC-006 -- determinism across
-  repeated runs -- not yet explicitly re-verified across ten runs).
-  SC-007 and SC-008 (threshold-empties-results and chunking-strategy
-  produces different boundaries) are new as of the parameter-impact
-  review and cannot be verified at all until the FR-013/FR-014 build gap
-  above is closed.
-- SC-002, SC-003, SC-005 each need an actual automated check written --
-  today they hold true by inspection/design, not by a test that would
-  catch a future regression. This, together with the FR-013/FR-014 build
-  gap above, is the concrete work to close before calling Milestone 1
-  truly done, and it's the first thing `/speckit.tasks` should generate
-  tasks for.
+  toggle) -- **built** 2026-08-04 (`RetrievalStep.tsx`, `ChunkingStep.tsx`,
+  `sampleDocs.ts`'s `chunkTextBySentence`). Filtering is applied before
+  Top-K slicing per the corrected FR-013 composition order.
+- SC-001 -- **re-verified** 2026-08-05 against a real Chromium build
+  (T051): a first-time visitor's path from the home page through the
+  RAG card to a completed pipeline walkthrough (ranked results,
+  assembled prompt, disclosed simulated answer) was confirmed
+  end-to-end, not just via the original build's historical Playwright
+  screenshots. SC-004 remains as verified manually via Playwright
+  screenshots during the original build (T050, 375px-viewport
+  readability -- not part of quickstart.md's 8-scenario list T051
+  re-ran). SC-006 (determinism) -- **verified** by
+  `scripts/checks/determinism.ts` against the pinned "coffee" fixture,
+  passing. SC-007 and SC-008 (threshold-empties-results,
+  chunking-strategy-produces-different-boundaries) -- **verified**
+  2026-08-05 against a real Chromium build: `check:a11y`'s threshold
+  test passes, and an ad hoc script confirmed the coffee/size-60 fixture
+  produces 6 fixed-size vs. 10 sentence-boundary chunks with genuinely
+  different `(start,end)` pairs. Verifying this surfaced a real bug in
+  the chunking-strategy toggle (it was resetting stepper/query state on
+  every switch, contradicting spec.md's Edge Cases section) -- now
+  fixed, see `tasks.md` T036.
+- SC-002 (`check:extensibility`, now also covering FR-001's
+  registry-uniqueness rule) and SC-003 (`check:disclosure`) --
+  **verified**, both pass. SC-005 (`check:a11y`) -- **verified**
+  2026-08-05: the two Playwright specs (T034/T043, 14 tests) now
+  actually run against a real Chromium build (system libraries
+  installed via `sudo npx playwright install-deps chromium`) and pass
+  14/14, re-run twice with no flake. The first real run failed 5 tests;
+  all 5 were genuine defects (not flaky/environment noise), now fixed
+  -- see `tasks.md` T036 for the full list.
 - User Story 4's contract (the `ConceptModule` interface + registry
   pattern) exists and type-checks; its full acceptance scenario is only
   verifiable once a second module exists (Milestone 5).
+- FR-001's `ConceptModule.id` uniqueness rule (added via `/speckit.clarify`
+  2026-08-04) -- **built and verified**: folded into `check:extensibility`
+  (`tasks.md` T048's expanded scope), which passes.
+- FR-005 (chart highlighting), FR-009 (Compare Variants keyboard/FIFO
+  scope), FR-011 (keyboard operability -- rewritten), and FR-014
+  (chunking-strategy toggle selected-state), refined by the
+  `checklists/accessibility.md` pass (2026-08-04) -- **built**:
+  `tasks.md` Phase 6.5 (T053-T057, a global focus-indicator style, a
+  diamond-marker non-color chart cue, focus management after a stepper
+  jump and after the document/strategy-switch reset, and an empty-state
+  landmark) is complete and type-checks/lints clean. FR-009's
+  keyboard/FIFO scope and FR-005's color-independence are exercised by
+  T043/T034 respectively, both blocked on the same `check:a11y`
+  execution gap above -- not a known defect, but not yet proven correct
+  by an actual browser run either.
 
 **Explicitly not included**: a second concept module, any real
 embedding/LLM API integration, backend/persistence, deployment.
 
 ### A note on sequencing
-Unlike Steward, this project's Milestone 1 was prototyped first (to
+This project's Milestone 1 was prototyped first (to
 validate the design -- star-chart visualization, guided stepper,
 variants comparison -- was actually worth building) and the formal
 `spec.md`/constitution were written afterward, codifying what the
@@ -234,7 +293,34 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.3.0 -- 2026-08-03, Milestone 1's Definition of Done
-corrected: FR-013/FR-014 (similarity-threshold, chunking-strategy)
+**Version**: 1.7.0 -- 2026-08-05, **Milestone 1's Definition of Done is
+fully met -- all 57 of 57 tasks in `tasks.md` are complete.** The
+root-access gap blocking `check:a11y` and manual browser validation is
+closed (`sudo npx playwright install-deps chromium`); all four
+automated checks now pass (`npm run check:all`), and all three
+previously-blocked tasks -- T036 (US1 manual scenarios), T044 (US3
+manual scenarios), T051 (final `check:all` + full quickstart.md
+8-scenario re-run) -- are done. The first real `check:a11y` run failed
+5/14 tests -- genuine defects, not environment noise -- all now fixed:
+an axe heading-order violation and a broken FIFO-replacement flow in
+Compare Variants, a non-focusable scrollable region on the Document
+step, the chunking-strategy toggle resetting query/stepper state on
+every switch (contradicting spec.md's Edge Cases section), and a
+resulting stepper-jump focus-target bug on the Retrieval step. T051's
+final pass additionally re-confirmed SC-001 (home-page-to-result path)
+against a real browser and found no further defects.
+
+Supersedes 1.6.0 (2026-08-05, the root-access gap blocking `check:a11y`
+closed; all four automated checks passed via `npm run check:all`, and
+T036's manual-scenario walkthrough was done, with T044/T051 still
+open), 1.5.0 (2026-08-04, `/speckit.implement` ran: FR-013, FR-014,
+FR-001, and Phase 6.5's accessibility-closure work built and
+type-check/lint clean; `check:extensibility`/`check:disclosure`/
+`check:determinism` passed, but `check:a11y` and the manual scenario
+walkthroughs (T036/T044) were unverified because the implementing
+sandbox had no root access to install Chromium's system libraries), and
+1.4.0 (2026-08-04, FR-001's registry id-uniqueness rule and
+the `checklists/accessibility.md`-driven FR-005/FR-009/FR-011/FR-014
+refinements added as required scope) and 1.3.0 (2026-08-03, FR-013/FR-014
 confirmed unimplemented via `/speckit.clarify`, not merely unverified;
-SC-007/SC-008 depend on that build gap closing first
+SC-007/SC-008 depend on that build gap closing first).

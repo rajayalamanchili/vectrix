@@ -58,7 +58,7 @@ Question: ${query || "(no query yet)"}`;
             Simulated answer
           </div>
           <p className="text-sm leading-relaxed text-ink-100">{answer}</p>
-          <p className="mt-3 text-xs text-ink-700 italic">
+          <p className="mt-3 text-xs text-ink-700 italic" data-simulated-disclosure="true">
             Simulated, not a real model call -- see the code comment in
             GenerationStep.tsx for the one-function swap to a real API.
           </p>

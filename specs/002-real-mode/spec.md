@@ -389,8 +389,8 @@ and see a simple recall@K number for each, side by side.
   RAG-Fusion are made genuinely executable in this milestone. GraphRAG
   (requires offline graph construction), Self-RAG (requires a
   self-critique loop), and Agentic RAG (requires a bounded agentic loop,
-  which per the Steward project's constitution and this project's own
-  roadmap is treated as a substantial capability in its own right) remain
+  which per this project's own roadmap is treated as a substantial
+  capability in its own right) remain
   explanatory-only in Real Mode until a future milestone -- this is a
   deliberate scope boundary, not an oversight, and FR-009 requires the UI
   to say so plainly.

@@ -87,22 +87,35 @@ export function StarChart({
           );
         })}
 
-      {/* stars (chunks) */}
+      {/* stars (chunks) -- highlighted points use a diamond marker, not
+          just a color/size change, so they stay distinguishable for
+          learners with color-vision deficiency (FR-005). */}
       {points.map((p) => {
         const s = toScreen(p.x, p.y);
         const r = p.highlighted ? 6 : 4;
         return (
           <g key={p.id}>
-            <circle
-              cx={s.sx}
-              cy={s.sy}
-              r={r}
-              fill={p.highlighted ? "var(--query-amber)" : "var(--doc-teal)"}
-              opacity={p.highlighted ? 1 : 0.75}
-              stroke={p.highlighted ? "var(--query-amber)" : "none"}
-              strokeOpacity={0.3}
-              strokeWidth={6}
-            />
+            {p.highlighted ? (
+              <rect
+                x={s.sx - r}
+                y={s.sy - r}
+                width={r * 2}
+                height={r * 2}
+                transform={`rotate(45 ${s.sx} ${s.sy})`}
+                fill="var(--query-amber)"
+                stroke="var(--query-amber)"
+                strokeOpacity={0.3}
+                strokeWidth={6}
+              />
+            ) : (
+              <circle
+                cx={s.sx}
+                cy={s.sy}
+                r={r}
+                fill="var(--doc-teal)"
+                opacity={0.75}
+              />
+            )}
             <text
               x={s.sx + 8}
               y={s.sy + 3}

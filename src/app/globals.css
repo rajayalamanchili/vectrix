@@ -85,3 +85,16 @@ body {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* FR-011: every interactive control needs a visible focus indicator --
+   at least a 2px outline with at least 3:1 contrast against its
+   adjacent background. --query-amber is used here because it's the
+   brightest, most saturated token in the palette, giving >8:1 contrast
+   against every surface color this app uses. This is a static outline
+   (not an animation or transition), so it stays immediately visible
+   even with prefers-reduced-motion active -- the rule above only
+   collapses animation/transition durations, it doesn't hide outlines. */
+:focus-visible {
+  outline: 2px solid var(--query-amber);
+  outline-offset: 2px;
+}

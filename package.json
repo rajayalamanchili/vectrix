@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:extensibility": "tsx scripts/checks/no-cross-module-conditionals.ts",
+    "check:disclosure": "tsx scripts/checks/simulated-disclosure.ts",
+    "check:determinism": "tsx scripts/checks/determinism.ts",
+    "check:a11y": "playwright test tests/a11y/",
+    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y"
   },
   "dependencies": {
     "next": "16.2.12",
@@ -14,13 +19,17 @@
     "react-dom": "19.2.4"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "playwright": "^1.62.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.5",
     "typescript": "^5"
   }
 }

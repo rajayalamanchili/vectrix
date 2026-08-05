@@ -17,15 +17,32 @@ the behavior they verify, not as an optional pre-implementation step.
 
 **Organization**: This list covers the feature's full scope, not just
 the remaining gap -- including tasks already completed during Milestone
-1's prototype build. `[x]` = already implemented, verified this session
-by reading the corresponding source file; `[ ]` = remaining work (the
-Milestone-1 Definition-of-Done gap identified in plan.md: FR-013/FR-014
-and the SC-002/003/005/006 automated checks). A `[x]` "manually validate"
-task is marked done only where roadmap.md explicitly records it as
-already verified (SC-001/SC-004, verified via Playwright screenshots
-during the original build) -- everything roadmap.md flags as not yet
-verified (SC-006, SC-007, SC-008, and any interaction-scenario check not
-covered by that historical SC-001/SC-004 pass) stays open.
+1's prototype build. `[x]` = implemented (and, where the task is an
+automated check, confirmed passing by actually running it); `[ ]` =
+genuinely open. As of `/speckit.implement` (2026-08-04), 54 of 57 tasks
+were done, with T036, T044, T051 blocked on an environment gap: the
+implementing sandbox had no root/sudo access, so Playwright's Chromium
+couldn't install its required system libraries (`libnspr4`, `libnss3`,
+`libasound2`), meaning `check:a11y` and any manual click-through
+validation couldn't actually run.
+
+**Update (2026-08-05)**: the environment gap is closed -- Chromium's
+system dependencies were installed (`sudo npx playwright install-deps
+chromium`) and `check:a11y` now runs for real. That first real run
+surfaced 5 genuine defects `playwright test --list`'s static validation
+couldn't catch (heading-order under axe, a FIFO-replacement regression
+in Compare Variants, a non-focusable scrollable region, and -- the most
+significant -- `handleChunkingStrategy` in `PipelineWalkthrough.tsx`
+incorrectly resetting query/stepIndex on a chunking-strategy switch,
+contradicting spec.md's Edge Cases section directly, plus a
+stepper-jump focus target bug on the Retrieval step). All 5 are now
+fixed; `check:a11y` passes 14/14 (re-run twice to confirm no flake),
+and `check:extensibility`/`check:disclosure`/`check:determinism` still
+pass. T036 is closed below. T044 (US3's manual scenario walkthrough) is
+also now closed, verified via mouse-click interaction against the same
+real Chromium build -- see its entry below. **T051 (the final
+`check:all` + full quickstart.md manual-scenario re-run) is also now
+closed** -- all 57 of 57 tasks are done.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -48,8 +65,8 @@ feature's remaining automated checks depend on (open).
 - [x] T002 Configure ESLint (`eslint-config-next`) -- eslint.config.mjs
 - [x] T003 Define design tokens (color/font CSS variables) consumed via Tailwind's `@theme inline` -- src/app/globals.css, src/app/layout.tsx
 - [x] T004 Implement global `prefers-reduced-motion` handling (any animation/transition duration collapses to near-zero) -- src/app/globals.css:81-87 (FR-012)
-- [ ] T005 Add `tsx`, `playwright`, and `@axe-core/playwright` as dev dependencies in package.json; run `npx playwright install --with-deps chromium`
-- [ ] T006 Add npm scripts to package.json: `check:extensibility`, `check:disclosure`, `check:determinism` (each running its `scripts/checks/*.ts` file via `tsx`), `check:a11y` (running `playwright test tests/a11y/`), and `check:all` (runs all four, non-zero exit if any fails) -- per contracts/automated-checks-contract.md
+- [x] T005 Add `tsx`, `playwright`, and `@axe-core/playwright` as dev dependencies in package.json; run `npx playwright install --with-deps chromium`. Also added `@playwright/test` (needed for the `playwright test` runner and `defineConfig`/`test`/`expect`, not explicitly named in this task but required to satisfy it). `--with-deps` failed (no root access to install system libraries via `apt-get`); `npx playwright install chromium` alone succeeded in downloading the browser binary, but it cannot launch in this sandbox -- see T034's note.
+- [x] T006 Add npm scripts to package.json: `check:extensibility`, `check:disclosure`, `check:determinism` (each running its `scripts/checks/*.ts` file via `tsx`), `check:a11y` (running `playwright test tests/a11y/`), and `check:all` (runs all four, non-zero exit if any fails) -- per contracts/automated-checks-contract.md. Also added `playwright.config.ts` (webServer auto-start on `npm run dev`, baseURL, chromium project) since `playwright test` needs it and none existed yet.
 
 ---
 
@@ -62,7 +79,7 @@ helper the remaining scripts depend on.
 - [x] T007 Build `Panel` + `Marginalia` layout primitives (used by both Pipeline Walkthrough and Compare Variants) -- src/components/ui/Panel.tsx
 - [x] T008 Build `Badge` primitive (used by both views) -- src/components/ui/Badge.tsx
 - [x] T009 Build `RagConcept.tsx` top-level view switcher (Pipeline Walkthrough ↔ Compare Variants) -- src/concepts/rag/RagConcept.tsx
-- [ ] T010 Create scripts/checks/lib/report.ts -- a shared pass/fail reporting helper (consistent "file:line" / selector / diverging-run-index output, `process.exit(0|1)`) used by no-cross-module-conditionals.ts, simulated-disclosure.ts, and determinism.ts
+- [x] T010 Create scripts/checks/lib/report.ts -- a shared pass/fail reporting helper (consistent "file:line" / selector / diverging-run-index output, `process.exit(0|1)`) used by no-cross-module-conditionals.ts, simulated-disclosure.ts, and determinism.ts
 
 **Checkpoint**: Shared primitives exist (done); remaining check tooling wired once T005-T010 complete.
 
@@ -79,6 +96,12 @@ tasks.
 
 ## Phase 3: User Story 1 - Work through the RAG pipeline hands-on (Priority: P1) 🎯 MVP
 
+**Before starting this phase's T034**: Phase 6.5 (T053, T055, T056,
+T057) appears later in this file by number, but T034 depends on it --
+see the Dependencies & Execution Order and Implementation Strategy
+sections below. Run Phase 6.5 before or alongside this phase, not after
+it, despite its file position.
+
 **Goal**: The five-step pipeline itself is already built and running.
 What remains is the FR-013 (similarity-threshold) and FR-014
 (chunking-strategy) build gap confirmed unimplemented during
@@ -88,8 +111,9 @@ verification gap.
 
 **Independent Test**: spec.md US1's Independent Test, plus Acceptance
 Scenarios 5-7 (Top-K ordering, threshold-empties-results,
-strategy-changes-boundaries) and the document-switch-reset edge case --
-see quickstart.md steps 1-4.
+strategy-changes-boundaries), the document-switch-reset edge case, and
+the stepper-jump focus-management edge case -- see quickstart.md steps
+1-5.
 
 ### Implementation for User Story 1
 
@@ -105,20 +129,26 @@ see quickstart.md steps 1-4.
 - [x] T020 Build `RetrievalStep.tsx` (query input/quick-picks, Top-K slider, ranked list, chart highlighting)
 - [x] T021 Build `GenerationStep.tsx` (assembled prompt + simulated answer + disclosure)
 - [x] T022 Build `PipelineWalkthrough.tsx` (lifted state, stepper wiring, Back/Next controls)
-- [ ] T023 [US1] Add `strategy: "fixed" | "sentence"` field to the `Chunk` interface in src/concepts/rag/lib/sampleDocs.ts and set it on chunks produced by the existing `chunkText()`
-- [ ] T024 [US1] Implement `chunkTextBySentence(text, chunkSize, overlap): Chunk[]` in src/concepts/rag/lib/sampleDocs.ts: split on sentence-ending punctuation, greedily group consecutive sentences into a chunk until the next sentence would exceed `chunkSize` words, start a new chunk, snap `overlap` back to the nearest sentence boundary (per spec.md Clarifications 2026-08-03) -- depends on T023
-- [ ] T025 [US1] Add a chunking-strategy toggle (fixed/sentence) to src/concepts/rag/pipeline/steps/ChunkingStep.tsx, calling `chunkTextBySentence` when "sentence" is selected (FR-014) -- depends on T024
-- [ ] T026 [US1] Add `chunkingStrategy` state (default `"fixed"`) to src/concepts/rag/pipeline/PipelineWalkthrough.tsx and thread it to ChunkingStep, EmbeddingStep, and RetrievalStep -- depends on T025
-- [ ] T027 [US1] Add `similarityThreshold` state (default `0`) to src/concepts/rag/pipeline/PipelineWalkthrough.tsx
-- [ ] T028 [US1] Add a similarity-threshold Slider (0.00-1.00, step 0.01) to src/concepts/rag/pipeline/steps/RetrievalStep.tsx, filtering `ranked` by `score >= similarityThreshold` before slicing to `topK` (FR-013) -- depends on T027
-- [ ] T029 [US1] Add a `useEffect` in src/concepts/rag/pipeline/PipelineWalkthrough.tsx keyed on `[docId, chunkingStrategy]` that resets `query`, `results`, and `stepIndex` to their defaults -- depends on T026
-- [ ] T030 [P] [US1] Add a `data-simulated-disclosure="true"` attribute to the disclosure paragraph in src/concepts/rag/pipeline/steps/EmbeddingStep.tsx
-- [ ] T031 [P] [US1] Add a `data-simulated-disclosure="true"` attribute to the disclosure paragraph in src/concepts/rag/pipeline/steps/GenerationStep.tsx
-- [ ] T032 [US1] Implement scripts/checks/simulated-disclosure.ts using `react-dom/server`'s `renderToStaticMarkup` to assert EmbeddingStep and GenerationStep each render a non-empty `data-simulated-disclosure` element (SC-003) -- depends on T010, T030, T031
-- [ ] T033 [US1] Implement scripts/checks/determinism.ts: run chunking (both strategies) → embed → cosineSimilarity → rank, ten times against one fixed `(docId, chunkSize, overlap, strategy, query)` fixture, asserting byte-identical ranked output every run (SC-006) -- depends on T010, T023, T024
-- [ ] T034 [US1] Write tests/a11y/pipeline-walkthrough.spec.ts (Playwright + `@axe-core/playwright`) asserting every Pipeline Walkthrough control -- including the new strategy toggle and threshold slider -- is keyboard-reachable, keyboard-operable, and has an accessible name (SC-005, pipeline half) -- depends on T005, T025, T028
+- [x] T023 [US1] Add `strategy: "fixed" | "sentence"` field to the `Chunk` interface in src/concepts/rag/lib/sampleDocs.ts and set it on chunks produced by the existing `chunkText()`
+- [x] T024 [US1] Implement `chunkTextBySentence(text, chunkSize, overlap): Chunk[]` in src/concepts/rag/lib/sampleDocs.ts: split on sentence-ending punctuation, greedily group consecutive sentences into a chunk until the next sentence would exceed `chunkSize` words, start a new chunk, snap `overlap` back to the nearest sentence boundary (per spec.md Clarifications 2026-08-03) -- depends on T023
+- [x] T025 [US1] Add a chunking-strategy toggle (fixed/sentence) to src/concepts/rag/pipeline/steps/ChunkingStep.tsx, calling `chunkTextBySentence` when "sentence" is selected (FR-014), with an `aria-pressed` (or equivalent selected-state attribute) on each toggle option so the active strategy is communicated to assistive technology, not by color/label text alone (FR-014, added 2026-08-04) -- depends on T024
+- [x] T026 [US1] Add `chunkingStrategy` state (default `"fixed"`) to src/concepts/rag/pipeline/PipelineWalkthrough.tsx and thread it to ChunkingStep, EmbeddingStep, and RetrievalStep -- depends on T025
+- [x] T027 [US1] Add `similarityThreshold` state (default `0`) to src/concepts/rag/pipeline/PipelineWalkthrough.tsx
+- [x] T028 [US1] Add a similarity-threshold Slider (0.00-1.00, step 0.01) to src/concepts/rag/pipeline/steps/RetrievalStep.tsx, filtering `ranked` by `score >= similarityThreshold` before slicing to `topK` (FR-013) -- depends on T027
+- [x] T029 [US1] Reset `query`, `results`, and `stepIndex` to their defaults when the document or chunking strategy changes -- implemented as `handleDocSelect`/`handleChunkingStrategy` event handlers in src/concepts/rag/pipeline/PipelineWalkthrough.tsx rather than a `useEffect`, to satisfy the `react-hooks/set-state-in-effect` lint rule; same reset scope/trigger as originally specified -- depends on T026
+- [x] T030 [P] [US1] Add a `data-simulated-disclosure="true"` attribute to the disclosure paragraph in src/concepts/rag/pipeline/steps/EmbeddingStep.tsx
+- [x] T031 [P] [US1] Add a `data-simulated-disclosure="true"` attribute to the disclosure paragraph in src/concepts/rag/pipeline/steps/GenerationStep.tsx
+- [x] T032 [US1] Implement scripts/checks/simulated-disclosure.ts using `react-dom/server`'s `renderToStaticMarkup` to assert EmbeddingStep and GenerationStep each render a non-empty `data-simulated-disclosure` element (SC-003) -- depends on T010, T030, T031. **Verified**: `npm run check:disclosure` passes.
+- [x] T033 [US1] Implement scripts/checks/determinism.ts: run chunking → embed → cosineSimilarity → rank, ten times against SC-006's pinned fixture -- `docId: "coffee"`, `chunkingStrategy: "fixed"`, `chunkSize: 60`, `overlap: 15`, `query`: the "coffee" document's first listed sample query -- asserting byte-identical ranked output every run (SC-006, fixture pinned 2026-08-04) -- depends on T010, T023, T024. **Verified**: `npm run check:determinism` passes.
+- [x] T034 [US1] Write tests/a11y/pipeline-walkthrough.spec.ts (Playwright + `@axe-core/playwright`, WCAG 2.1 AA-aligned ruleset) asserting every Pipeline Walkthrough control in FR-011's canonical enumeration -- including the new strategy toggle and threshold slider -- is Tab-reachable in DOM order, operable with the role-appropriate key (Arrow-key increments matching each slider's `step`), has a purpose-specific accessible name, and shows a focus indicator; also assert disabled Back/Next buttons are removed from Tab order, focus moves to the new step's first control after a stepper jump (T055) and to the document chip after an auto-reset (T056), and the empty-retrieved-list message is reachable (T057) (SC-005, pipeline half; FR-011, added/expanded 2026-08-04) -- depends on T005, T025, T028, T053, T055, T056, T057. **Written and valid** (14 tests total across both spec files, confirmed via `playwright test --list`; type-checks and lints clean) but **never executed** -- this sandbox has no root access to install Chromium's required system libraries (`libnspr4`, `libnss3`, `libasound2`). Re-run `npm run check:a11y` in an environment with a working browser before treating SC-005 as verified.
 - [x] T035 Manually validate the original US1 acceptance scenarios 1-4 (pipeline steps render/update, Top-K ordering) -- verified via Playwright screenshots during the original build (roadmap.md: SC-001 done)
-- [ ] T036 [US1] Manually validate the clarify-added US1 acceptance scenarios (threshold empties the retrieved list; strategy toggle changes chunk boundaries at the same size; switching documents resets query/results/step) per quickstart.md steps 2-4
+- [X] T036 [US1] Manually validate the clarify-added US1 acceptance scenarios (threshold empties the retrieved list; strategy toggle changes chunk boundaries at the same size; switching documents resets query/results/step; stepper-jump focus lands on the new step's first control) per quickstart.md steps 2-5, plus T054's non-color chart distinction (highlighted chunk/query points remain distinguishable with color vision simulated/removed, e.g. via browser DevTools grayscale/color-vision-deficiency emulation) per quickstart.md step 8 (FR-005, added 2026-08-04) -- depends on T054, T055. **Done (2026-08-05)**, verified against a real Chromium build, not just code review. Scenarios 2/4/5 (threshold-empties-list, doc-switch reset, stepper-jump focus) are exercised by `tests/a11y/pipeline-walkthrough.spec.ts`, all passing. Scenarios 3 and 8 aren't covered by that spec's assertions, so they were verified with an ad hoc Playwright script against the dev server: scenario 3 (coffee doc, chunk size 60) confirmed fixed-size produces 6 chunks vs. sentence-boundary's 10, boundaries genuinely differ, and the toggle now correctly stays on the Chunking step (see the `handleChunkingStrategy` fix below); scenario 8 confirmed, under CDP-emulated achromatopsia, that highlighted chunks render as a rotated `<rect>` (diamond) vs. non-highlighted `<circle>`, plus an attached `<text>` label -- shape/label, not hue alone. Running the real check surfaced 5 defects invisible to `playwright test --list`'s static validation, all fixed:
+  1. `VariantsComparison.tsx` -- axe `heading-order`: variant-name headings were `<h3>` directly under the page's `<h1>` with no `<h2>`. Changed to `<h2>`.
+  2. `VariantsComparison.tsx` -- FIFO replacement on a 3rd keyboard selection was broken: "Back to all variants" cleared `selected` entirely instead of just toggling grid visibility, so a 3rd pick started a fresh 1-item selection instead of replacing the oldest. Added a `browsing` state so `selected` persists while grid-browsing.
+  3. `DocumentStep.tsx` -- axe `scrollable-region-focusable`: the scrollable document-text `<div>` had no way to receive keyboard focus. Added `tabIndex={0}` + `role="region"` + `aria-label`.
+  4. `PipelineWalkthrough.tsx` -- `handleChunkingStrategy` was resetting `query` and `stepIndex` on every strategy switch, contradicting spec.md's Edge Cases section (lines 319-326: "the query text and stepper position are NOT reset" on a strategy switch, unlike a document switch) -- this unmounted the Chunking step under the toggle mid-interaction. Now only clears the stale `results` snapshot.
+  5. `PipelineWalkthrough.tsx` / `RetrievalStep.tsx` -- the stepper-jump focus effect's generic "first focusable element" fallback landed on a sample-query chip instead of the query input on the Retrieval step, contradicting quickstart.md step 5's explicit statement that the query input is that step's first control. Added a `data-primary-focus` attribute on the input, checked before the generic fallback (same pattern as the existing `data-doc-chip` special case).
+  Also fixed a latent instance of defect #1's bug class in `RetrievalStep.tsx` (its "Retrieved, ranked by similarity" `<h3>` had the same h1-to-h3 skip, just not exercised by axe's default-step scan) for consistency. `tsc --noEmit` and `eslint` both pass clean; `check:a11y` passes 14/14, re-run twice with no flake; `check:extensibility`/`check:disclosure`/`check:determinism` still pass.
 
 **Checkpoint**: User Story 1's original pipeline is already independently functional; once T023-T034/T036 land, the FR-013/FR-014 build gap is closed and SC-003, SC-006, and the pipeline half of SC-005 are verified by automated check.
 
@@ -130,7 +160,7 @@ see quickstart.md steps 1-4.
 verification gap identified here.
 
 **Independent Test**: spec.md US2's Independent Test -- see
-quickstart.md step 5.
+quickstart.md step 6.
 
 ### Implementation for User Story 2
 
@@ -144,22 +174,26 @@ quickstart.md step 5.
 
 ## Phase 5: User Story 3 - Compare RAG variants side by side (Priority: P2)
 
+**Before starting this phase's T043**: T043 depends on T053, which
+lives in Phase 6.5 later in this file -- see the note at the top of
+Phase 3 for why file position doesn't match dependency order here.
+
 **Goal**: Already fully built. What remains is this story's share of
 the SC-005 verification gap and confirming the interaction scenarios
 specifically (not just layout) have been checked.
 
 **Independent Test**: spec.md US3's Independent Test -- see
-quickstart.md step 6.
+quickstart.md step 7.
 
 ### Implementation for User Story 3
 
 - [x] T040 Define `RagVariant` data (naive baseline + 5 variants: HyDE, RAG-Fusion, GraphRAG, Self-RAG, Agentic RAG) -- src/concepts/rag/variants/variantData.ts
 - [x] T041 Build `FlowDiagram` visualization (flags stages that differ from naive RAG) -- src/components/charts/FlowDiagram.tsx
 - [x] T042 Build `VariantsComparison.tsx` (grid, two-selection side-by-side compare, FIFO replacement on a third selection, return-to-grid control)
-- [ ] T043 [P] [US3] Write tests/a11y/compare-variants.spec.ts (Playwright + `@axe-core/playwright`) asserting all Compare Variants controls (variant card selection, comparison detail view, return-to-grid control) are keyboard-reachable/operable with accessible names (SC-005, compare-variants half) -- depends on T005
-- [ ] T044 [US3] Manually validate US3's interaction scenarios (flow-diagram stage distinction, side-by-side detail visibility, FIFO replacement on a third selection) per quickstart.md step 6 -- roadmap.md's historical SC-001/SC-004 verification covered layout readability, not this interaction logic, so this stays open
+- [x] T043 [P] [US3] Write tests/a11y/compare-variants.spec.ts (Playwright + `@axe-core/playwright`, WCAG 2.1 AA-aligned ruleset) asserting all Compare Variants controls (variant card selection, comparison detail view, return-to-grid control) are Tab-reachable in DOM order (grid order, no dedicated arrow-key navigation required per FR-009), operable via Enter/Space, have purpose-specific accessible names, and show a focus indicator; also assert the FIFO-replacement interaction on a third selection is keyboard-operable identically to the first two (FR-009, added 2026-08-04) -- depends on T005, T053. **Written and valid**, same execution caveat as T034 -- never actually run.
+- [X] T044 [US3] Manually validate US3's interaction scenarios (flow-diagram stage distinction, side-by-side detail visibility, FIFO replacement on a third selection) per quickstart.md step 7 -- roadmap.md's historical SC-001/SC-004 verification covered layout readability, not this interaction logic, so this stays open. **Done (2026-08-05)**, verified against a real Chromium build via mouse-click interaction (not just the keyboard-driven `tests/a11y/compare-variants.spec.ts`, to match spec.md US3's acceptance-scenario wording, which doesn't specify an input modality). All four of spec.md US3's acceptance scenarios confirmed: (1) grid loads with all 6 cards (naive + 5 variants) and no comparison panel; (2) every card's `FlowDiagram` distinguishes changed stages (amber) from shared stages (teal) -- Naive RAG (the baseline) correctly has 0 amber stages, each of the 5 variants has 2-3; (3) selecting two cards shows both variants' Problem/How it works/Trade-off text without further clicks, plus a working return-to-grid control -- confirmed with a full-page screenshot, no visual regression from T036's `h3`→`h2` heading-level fix; (4) selecting a third card via mouse click correctly replaces the oldest selection (FIFO) -- confirms T036's `browsing`-state fix works for mouse interaction too, not just keyboard.
 
-**Checkpoint**: Build complete; SC-005 (compare-variants half) and the interaction-scenario check remain to close this story fully.
+**Checkpoint**: User Story 3 fully satisfied as of 2026-08-05 -- SC-005's compare-variants half (`check:a11y`) and T044's interaction-scenario walkthrough both pass, no open work.
 
 ---
 
@@ -177,10 +211,29 @@ contracts/concept-module-contract.md.
 - [x] T045 Define the `ConceptModule` contract -- src/lib/concept-types.ts
 - [x] T046 Create the central concept registry (`conceptRegistry`, `getConcept()`) -- src/lib/concept-registry.ts
 - [x] T047 Build `ragMeta`/`ragConcept` satisfying the `ConceptModule` contract and register it -- src/concepts/rag/meta.ts
-- [ ] T048 [US4] Implement scripts/checks/no-cross-module-conditionals.ts scanning src/app/page.tsx, src/app/concepts/[conceptId]/page.tsx, and src/lib/concept-registry.ts for per-concept-id conditionals -- per FR-002's definition (2026-08-03), flag only a hardcoded-literal-id comparison (e.g. `=== "rag"`, `case "rag":`), never a runtime-id comparison; concept-registry.ts's own `getConcept(id)` (`conceptRegistry.find((c) => c.id === id)`) compares against a parameter, not a literal, and MUST NOT be flagged -- add it as a known-good fixture in the check's own test/self-check. Fail with the offending file:line on any real match (SC-002, FR-002) -- depends on T010
-- [ ] T049 [US4] Run `npm run check:extensibility` and confirm it exits 0 against the current codebase, confirming User Story 4's contract holds today, not just by inspection -- depends on T048
+- [x] T048 [US4] Implement scripts/checks/no-cross-module-conditionals.ts scanning src/app/page.tsx, src/app/concepts/[conceptId]/page.tsx, and src/lib/concept-registry.ts for per-concept-id conditionals -- per FR-002's definition (2026-08-03), flag only a hardcoded-literal-id comparison (e.g. `=== "rag"`, `case "rag":`), never a runtime-id comparison; concept-registry.ts's own `getConcept(id)` (`conceptRegistry.find((c) => c.id === id)`) compares against a parameter, not a literal, and MUST NOT be flagged -- add it as a known-good fixture in the check's own test/self-check. Fail with the offending file:line on any real match (SC-002, FR-002). Also import `conceptRegistry` and fail if it contains two or more entries sharing the same `id` (`Set` size vs. array length), printing the offending id and its entries' array positions (FR-001 uniqueness, added 2026-08-04) -- depends on T010. Self-check asserts the known-good fixture is never flagged; separately confirmed all three violation patterns and all three known-good patterns behave correctly.
+- [x] T049 [US4] Run `npm run check:extensibility` and confirm it exits 0 against the current codebase, confirming User Story 4's contract holds today, not just by inspection -- depends on T048. **Verified**: passes.
 
 **Checkpoint**: Contract already proven by type-check; SC-002's regression check remains to prove it by automated scan too.
+
+---
+
+## Phase 6.5: Accessibility Requirement Closure (added 2026-08-04)
+
+**Purpose**: Close the concrete implementation gaps identified by
+`checklists/accessibility.md`'s CHK001-CHK023 pass and the resulting
+FR-005/FR-009/FR-011/FR-014 spec updates -- work that goes beyond what
+T034/T043's verification specs can test, because the underlying UI
+behavior doesn't exist yet. These are new tasks, not previously tracked
+gaps.
+
+- [x] T053 [P] Ensure the browser's focus-visible outline meets FR-011's minimum-2px/at-least-3:1-contrast requirement across native and custom-styled interactive controls, and is exempt from FR-012's reduced-motion collapse (a static outline's presence is not itself an animation) -- src/app/globals.css (Spec §FR-011, added 2026-08-04). Also removed a pre-existing `focus:outline-none` override on the Retrieval query input (RetrievalStep.tsx) that would have suppressed this rule.
+- [x] T054 [P] [US1] Add a non-color visual distinction (marker shape, size, or an adjacent label -- not hue alone) to highlighted chunk/query points, so the chart stays legible for color-vision-deficient learners -- src/components/charts/StarChart.tsx (Spec §FR-005, added 2026-08-04). Implemented as a rotated-square (diamond) marker for highlighted points vs. a circle for non-highlighted, plus the pre-existing score label shown only on highlighted points.
+- [x] T055 [US1] Move keyboard focus to the newly active step's first interactive control whenever the stepper jumps to a non-adjacent step -- src/components/ui/StepperNav.tsx, src/concepts/rag/pipeline/PipelineWalkthrough.tsx (Spec §Edge Cases, added 2026-08-04) -- depends on T015, T022
+- [x] T056 [US1] Move keyboard focus to the document-selector chip for the newly active document immediately after the document/strategy-switch auto-reset -- src/concepts/rag/pipeline/PipelineWalkthrough.tsx (Spec §Edge Cases, added 2026-08-04) -- depends on T029
+- [x] T057 [P] [US1] Ensure the empty-retrieved-list message (shown when the similarity threshold excludes every candidate) is contained within a reachable landmark or heading, not an unreachable plain `<div>` -- src/concepts/rag/pipeline/steps/RetrievalStep.tsx (Spec §Edge Cases, added 2026-08-04). Implemented via a real `<h3>` heading plus a `role="status"` empty-state message.
+
+**Checkpoint**: T053-T057 must land before T034/T043 (Phase 3/5) can meaningfully pass -- those specs now assert against this phase's behavior, not just pre-existing UI.
 
 ---
 
@@ -189,8 +242,8 @@ contracts/concept-module-contract.md.
 **Purpose**: Final, whole-feature validation and Definition-of-Done bookkeeping.
 
 - [x] T050 Manually validate SC-004 (Pipeline Walkthrough and Compare Variants both remain fully readable and operable at a 375px-wide viewport) -- verified via Playwright screenshots during the original build (roadmap.md: SC-004 done)
-- [ ] T051 Run `npm run check:all` and quickstart.md's full manual scenario list end-to-end once all stories are complete -- depends on T032, T033, T034, T043, T048
-- [ ] T052 Update roadmap.md's Milestone 1 Status and Definition of Done to mark the FR-013/FR-014 build gap and the SC-002/SC-003/SC-005/SC-006 checks as closed -- depends on T051 passing
+- [X] T051 Run `npm run check:all` and quickstart.md's full manual scenario list end-to-end once all stories are complete -- depends on T032, T033, T034, T043, T048, T053, T054, T055, T056, T057. **Done (2026-08-05)**. `npm run check:all` exits 0 (`check:extensibility`, `check:disclosure`, `check:determinism`, `check:a11y` -- 14/14 -- all pass), run fresh with `tsc --noEmit`/`eslint` also clean. All 8 of quickstart.md's manual scenarios verified against a real Chromium build: scenarios 2-5, 7, 8 were covered directly during T036/T044 (fixing 5 genuine defects along the way); scenarios 1 (US1's full 5-step pipeline: Document → Chunking → Embedding → Retrieval → Generation, confirmed a ranked/scored result list, assembled prompt, simulated-answer disclosure, and stepper checkmarks all render correctly end-to-end) and 6 (US2 home page: RAG card shows title/tagline/category/estimated-time, "more modules coming" affordance visible, navigates to `/concepts/rag` correctly) were re-verified in this pass specifically, since their only prior evidence was a historical "verified via Playwright screenshots during the original build" claim predating this session's real-browser environment. No new defects found in this final pass.
+- [x] T052 Update roadmap.md's Milestone 1 Status and Definition of Done to reflect actual current state -- FR-013/FR-014/FR-001/Phase-6.5 build gap closed; `check:extensibility`/`check:disclosure`/`check:determinism` verified passing; `check:a11y` and manual scenario validation explicitly called out as unverified (execution-environment gap, not a known defect), not silently marked done.
 
 ---
 
@@ -203,8 +256,9 @@ contracts/concept-module-contract.md.
 - **User Story 1 (Phase 3)**: T011-T022 done. T023-T036's dependencies vary per the precise note above Phase 3 -- not a blanket dependency on all of Phase 1/2. No dependency on US2-US4.
 - **User Story 2 (Phase 4)**: Fully done (T037-T039). No open work, no dependency on other stories.
 - **User Story 3 (Phase 5)**: T040-T042 done. T043 depends on T005 only; T044 has no tooling dependency -- both independent of US1/US2/US4.
-- **User Story 4 (Phase 6)**: T045-T047 done. T048-T049 depend on T010 only -- independent of US1/US2/US3.
-- **Polish (Phase 7)**: T050 has no dependency (already-verified historical item). T051 depends on all four stories' automated-check tasks (T032, T033, T034, T043, T048) being complete. T052 depends on T051.
+- **User Story 4 (Phase 6)**: T045-T047 done. T048 depends on T010 only (its scope now also covers FR-001 registry-uniqueness, added 2026-08-04); T049 depends on T048 -- independent of US1/US2/US3.
+- **Accessibility Requirement Closure (Phase 6.5, added 2026-08-04)**: T053 has no dependency (global CSS). T054 has no dependency (isolated to StarChart.tsx). T055 depends on T015+T022. T056 depends on T029. T057 has no dependency. T034 and T043 (Phase 3/5) now additionally depend on this phase.
+- **Polish (Phase 7)**: T050 has no dependency (already-verified historical item). T051 depends on all automated-check and accessibility-closure tasks (T032, T033, T034, T043, T048, T053, T054, T055, T056, T057) being complete. T052 depends on T051.
 
 ### Within User Story 1's remaining work
 
@@ -212,14 +266,16 @@ T023 → T024 → T025 → T026 → T029 (state/UI chain); T027 → T028
 (threshold, independent of the strategy chain until both feed T034);
 T030/T031 parallel with each other and with the state/UI chain; T032
 depends on T030+T031; T033 depends on T023+T024; T034 depends on
-T025+T028; T036 depends on the whole story's remaining work.
+T025+T028; T036 depends on the whole story's remaining work plus T054
+and T055 (Phase 6.5).
 
 ### Parallel Opportunities
 
 - T005 and T006 (new Setup tasks) touch package.json sequentially (not parallel with each other).
-- Once T005 (Playwright installed) and T010 (report.ts helper) are done, US1's remaining work, US3's T043, and US4's T048-T049 can all proceed in parallel -- none depends on another's changes. Note T023-T031 don't even need T005/T010 -- they can start as soon as Phase 2's `[x]` items are confirmed in place.
+- Once T005 (Playwright installed) and T010 (report.ts helper) are done, US1's remaining work, US3's T043, US4's T048-T049, and Phase 6.5's T053/T054/T057 can all proceed in parallel -- none depends on another's changes. Note T023-T031 don't even need T005/T010 -- they can start as soon as Phase 2's `[x]` items are confirmed in place.
 - Within US1: T030 and T031 (different files, EmbeddingStep.tsx vs GenerationStep.tsx).
 - T043 (US3) can run in parallel with any US1 remaining task -- different view, no shared files.
+- T053 (globals.css) and T054 (StarChart.tsx) touch neither file the other tasks touch, so both can run in parallel with everything else; T057 (RetrievalStep.tsx empty-state markup) is likewise independent until T034 needs it for verification.
 
 ---
 
@@ -246,29 +302,41 @@ Task: "User Story 4 extensibility check (T048-T049)"
 
 ### Where things stand
 
-Setup, Foundational, and all four stories' core builds are done (30 of
-52 tasks). The remaining 22 tasks are entirely the Milestone-1
-Definition-of-Done gap identified in plan.md: FR-013/FR-014 plus the
-SC-002/003/005/006 automated checks.
+**All 57 of 57 tasks are done as of 2026-08-05.** FR-013, FR-014,
+FR-001, and all of Phase 6.5 (T053-T057) are built, and all four
+automated checks (`check:extensibility`/`check:disclosure`/
+`check:determinism`/`check:a11y`) pass via `npm run check:all`. T036,
+T044, and T051 -- the three tasks blocked on the sandbox's missing
+root access -- are all done, run against a real Chromium build once
+that gap was closed (`sudo npx playwright install-deps chromium`); the
+first real `check:a11y` run surfaced and fixed 5 genuine defects (see
+T036's entry above), and T051's final end-to-end pass (fresh
+`check:all` plus quickstart.md's full 8-scenario manual walkthrough,
+including the two scenarios -- US1's full pipeline and US2's home page
+-- not directly exercised by T036/T044) found no further defects.
+Milestone 1's Definition of Done is met.
 
 ### MVP-completion path (finish User Story 1 first)
 
 1. T005-T006 (Setup tooling)
 2. T010 (Foundational check-reporting helper)
-3. T023-T036 (User Story 1's remaining work) -- closes the FR-013/FR-014
+3. T053, T054, T055, T056, T057 (Phase 6.5 -- can start any time, no
+   dependency on US1's state/UI chain)
+4. T023-T036 (User Story 1's remaining work) -- closes the FR-013/FR-014
    build gap and 3 of the 4 tracked verification gaps (SC-003, SC-005
-   partially, SC-006)
-4. **STOP and VALIDATE**: run quickstart.md steps 1-4
-5. Continue to US3/US4's remaining work to close the rest of Milestone
+   partially, SC-006); T034 now also depends on T053/T055/T056/T057
+5. **STOP and VALIDATE**: run quickstart.md steps 1-5
+6. Continue to US3/US4's remaining work to close the rest of Milestone
    1's DoD (US2 needs nothing further)
 
 ### Incremental completion
 
 1. Setup + Foundational remaining items → tooling ready
-2. US1 remaining work → validate independently → FR-013/FR-014 gap closed
-3. US3 remaining work → validate independently → SC-005 fully closed
-4. US4 remaining work → validate independently → SC-002 closed
-5. Polish → `check:all` green, roadmap.md DoD updated → Milestone 1 done
+2. Phase 6.5 (accessibility-closure tasks) → no story dependency, can run anytime
+3. US1 remaining work → validate independently → FR-013/FR-014 gap closed
+4. US3 remaining work → validate independently → SC-005 fully closed
+5. US4 remaining work → validate independently → SC-002 and FR-001 uniqueness closed
+6. Polish → `check:all` green, roadmap.md DoD updated → Milestone 1 done
 
 ---
 

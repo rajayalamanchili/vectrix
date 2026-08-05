@@ -44,11 +44,14 @@ Sick leave is separate from vacation time: employees accrue 1 sick day per month
   },
 ];
 
+export type ChunkingStrategy = "fixed" | "sentence";
+
 export interface Chunk {
   id: string;
   text: string;
   startWord: number;
   endWord: number;
+  strategy: ChunkingStrategy;
 }
 
 /** Splits text into overlapping word-count chunks -- the simplest real chunking strategy. */
@@ -66,10 +69,82 @@ export function chunkText(text: string, chunkSize: number, overlap: number): Chu
       text: words.slice(start, end).join(" "),
       startWord: start,
       endWord: end,
+      strategy: "fixed",
     });
     idx += 1;
     if (end >= words.length) break;
     start += step;
   }
+  return chunks;
+}
+
+/**
+ * Splits text into sentences first (on `.`/`!`/`?` followed by whitespace --
+ * a simple heuristic verified correct only for the shipped sample
+ * documents, per spec.md Assumptions), then greedily groups consecutive
+ * sentences into a chunk until the next sentence would push the running
+ * word count over `chunkSize`. A single sentence longer than `chunkSize`
+ * still becomes its own chunk rather than being split mid-sentence.
+ * `overlap` resumes the next chunk `overlap` words back from the current
+ * chunk's end, snapped to the nearest sentence boundary at or before that
+ * point, so overlap stays meaningful across sentence boundaries too.
+ */
+export function chunkTextBySentence(text: string, chunkSize: number, overlap: number): Chunk[] {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  const rawSentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const sentenceTexts = rawSentences.length > 0 ? rawSentences : [normalized];
+
+  interface SentenceInfo {
+    text: string;
+    wordCount: number;
+    startWord: number;
+    endWord: number;
+  }
+  const sentences: SentenceInfo[] = [];
+  let wordCursor = 0;
+  for (const s of sentenceTexts) {
+    const wordCount = s.split(" ").filter(Boolean).length;
+    sentences.push({ text: s, wordCount, startWord: wordCursor, endWord: wordCursor + wordCount });
+    wordCursor += wordCount;
+  }
+
+  const chunks: Chunk[] = [];
+  let idx = 0;
+  let i = 0;
+
+  while (i < sentences.length) {
+    let wordCount = 0;
+    let j = i;
+    while (j < sentences.length) {
+      if (j > i && wordCount + sentences[j].wordCount > chunkSize) break;
+      wordCount += sentences[j].wordCount;
+      j += 1;
+    }
+
+    const startWord = sentences[i].startWord;
+    const endWord = sentences[j - 1].endWord;
+    chunks.push({
+      id: `chunk-${idx}`,
+      text: sentences.slice(i, j).map((s) => s.text).join(" "),
+      startWord,
+      endWord,
+      strategy: "sentence",
+    });
+    idx += 1;
+
+    if (j >= sentences.length) break;
+
+    const rawNextStart = Math.max(0, endWord - overlap);
+    let nextI = j;
+    for (let k = 0; k < sentences.length; k++) {
+      if (sentences[k].startWord <= rawNextStart) {
+        nextI = k;
+      } else {
+        break;
+      }
+    }
+    i = nextI <= i ? i + 1 : nextI;
+  }
+
   return chunks;
 }
