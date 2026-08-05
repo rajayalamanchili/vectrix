@@ -14,15 +14,19 @@ Supports SC-001 (002-spec).
 
 ## `check:disclosure` -- `scripts/checks/simulated-disclosure.ts`, extended
 
-- **New input**: `EmbeddingStep` and `GenerationStep`, additionally
-  rendered (via `react-dom/server`'s `renderToStaticMarkup`) with a
-  fixture `realMode: { active: true, provider: { id: "openai", label: "OpenAI", ... }, ... }` prop.
-- **New rule**: fail if the real-mode-rendered output is missing an
-  element with `data-real-disclosure="true"` and non-empty text content
-  naming the provider (FR-004, FR-006).
+- **New input**: `EmbeddingStep`, `GenerationStep`, and `RealModeToggle`,
+  additionally rendered (via `react-dom/server`'s `renderToStaticMarkup`)
+  with a fixture `realMode: { active: true, provider: { id: "openai", label: "OpenAI", ... }, ... }` prop.
+- **New rule**: fail if the real-mode-rendered output is missing either
+  (a) an element with `data-real-disclosure="true"` and non-empty text
+  content naming the provider (FR-004, FR-006), or (b) `RealModeToggle`'s
+  key-entry prompt is missing an element with `data-key-disclaimer="true"`
+  whose text content includes both the where-it's-sent statement and the
+  "at your own risk" language (FR-003; data-model.md's disclaimer copy).
 - **Exit code**: `0` = every simulated-mode surface AND every real-mode
-  surface discloses. `1` = either is missing or empty.
-- **Supports**: FR-004, FR-006, Constitution Principle II (the inverse
+  surface AND the key-entry disclaimer discloses. `1` = any is missing or
+  empty.
+- **Supports**: FR-003, FR-004, FR-006, Constitution Principle II (the inverse
   direction: real output must not be presented ambiguously either).
 
 ## `check:a11y` -- `tests/a11y/real-mode.spec.ts` (new third spec file)

@@ -20,6 +20,34 @@ research.md's provider-abstraction decision).
 | `apiKey` | `string \| null` | In-memory only (research.md's key-storage decision) -- never written to `sessionStorage`/`localStorage`/any request this project's own code doesn't make. `null` until FR-003's prompt is completed. |
 | `error` | `RealModeError \| null` | Most recent Real Mode API failure, if any (FR-007). Cleared on next successful call or explicit dismissal. |
 
+## Key-entry disclaimer copy (FR-003, supports User Story 1 Acceptance Scenario 2)
+
+`RealModeToggle.tsx`'s key-entry prompt (first shown the moment Real
+Mode is activated with no key yet configured) MUST render both halves
+below together, not the safe-handling half alone -- FR-003 requires the
+risk disclaimer to sit "alongside," not replace, the where-it's-sent
+statement:
+
+> **Where your key goes**: Sent directly from this browser to
+> {provider.label}'s API -- never to any server this project runs (there
+> isn't one). Held in memory for this browser tab only; closing or
+> refreshing the tab clears it immediately.
+>
+> **Use at your own risk**: Entering any API key into a web page carries
+> some inherent risk no client-side app can fully remove -- e.g. a
+> browser extension with page access could read it while active. Use a
+> key you're comfortable exposing this way, ideally one with a low
+> spending limit.
+
+Both paragraphs render inside the same prompt element carrying
+`data-key-disclaimer="true"`, mirroring the `data-simulated-disclosure`/
+`data-real-disclosure` marker convention (spec.md 001;
+`contracts/real-mode-automated-checks-contract.md`), so `check:disclosure`
+can assert non-empty content the same way it already does for the other
+two disclosure surfaces. `{provider.label}` is interpolated from the
+active `ProviderConfig` (below), not hardcoded, consistent with the
+provider-agnostic design.
+
 ## ProviderConfig **(new)**
 
 The data shape that parameterizes `openaiCompatibleProvider.ts`

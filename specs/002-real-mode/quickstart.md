@@ -32,11 +32,12 @@ introduced and must be fixed before continuing.
 1. **US1 zero-setup preserved** -- open the RAG module fresh, confirm no
    prompt/input appears until the Real Mode toggle is explicitly
    activated (Acceptance Scenario 1).
-2. **US1 key prompt** -- activate Real Mode, confirm a single clear
-   prompt appears stating where the key goes/doesn't go, enter a valid
-   key (Acceptance Scenario 2), toggle back to Simulated Mode and
-   confirm the key isn't re-requested when toggling Real Mode back on
-   (Acceptance Scenario 3).
+2. **US1 key prompt + disclaimer** -- activate Real Mode, confirm a
+   single clear prompt appears stating where the key goes/doesn't go
+   *and* the "use at your own risk" disclaimer (FR-003; data-model.md's
+   disclaimer copy), enter a valid key (Acceptance Scenario 2), toggle
+   back to Simulated Mode and confirm the key isn't re-requested when
+   toggling Real Mode back on (Acceptance Scenario 3).
 3. **US2 real embedding chart** -- reach the Embedding step with Real
    Mode active, confirm the chart is computed from a real API response,
    labeled "Real embeddings via OpenAI," and the projection method

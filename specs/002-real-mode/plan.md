@@ -162,7 +162,7 @@ src/concepts/rag/
 │   ├── openaiCompatibleProvider.ts        # RealModeProvider impl, takes a ProviderConfig -- embedBatch()/generate() (contracts/real-mode-provider-contract.md)
 │   ├── pca.ts                             # hand-rolled 2-component PCA projection (deterministic power iteration)
 │   ├── callEstimate.ts                    # FR-010/FR-013 call-count formulas (M+3, N+3), pure functions
-│   ├── RealModeToggle.tsx                 # toggle + API-key prompt + format pre-validation (FR-002/FR-003)
+│   ├── RealModeToggle.tsx                 # toggle + API-key prompt + format pre-validation + data-key-disclaimer copy (FR-002/FR-003)
 │   ├── ErrorBanner.tsx                    # FR-007 error + fallback-to-Simulated-Mode UI, shared by both views
 │   └── CustomDocumentInput.tsx            # FR-005 paste + 10,000-char limit, shared component, independent state per view
 ├── lib/
