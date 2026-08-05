@@ -112,6 +112,7 @@ export function RetrievalStep({
             ))}
           </div>
           <input
+            data-primary-focus="true"
             value={activeQuery}
             onChange={(e) => runQuery(e.target.value)}
             placeholder="Or type your own question..."
@@ -135,9 +136,9 @@ export function RetrievalStep({
         </Panel>
 
         <Panel className="p-4">
-          <h3 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
+          <h2 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
             Retrieved, ranked by similarity
-          </h3>
+          </h2>
           {topResults.length === 0 ? (
             <p role="status" className="text-xs text-ink-500 italic">
               No chunks meet the current similarity threshold -- try lowering

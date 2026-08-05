@@ -32,7 +32,12 @@ export function DocumentStep({
             </button>
           ))}
         </div>
-        <div className="max-h-[340px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink-300 font-body">
+        <div
+          tabIndex={0}
+          role="region"
+          aria-label={`${doc.title} full text`}
+          className="max-h-[340px] overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-ink-300 font-body"
+        >
           {doc.text}
         </div>
       </Panel>

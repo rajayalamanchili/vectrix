@@ -15,19 +15,40 @@ Success Criteria are met.
 accessibility-closure work (focus-indicator CSS, non-color chart marker,
 focus management after a stepper jump and after the document/strategy
 auto-reset, empty-list landmark) are now built -- `tsc --noEmit` and
-`eslint` both pass clean. Three of the four automated checks
-(`check:extensibility`, `check:disclosure`, `check:determinism`) run and
-pass. **`check:a11y` (Playwright) could not be executed in the
-implementing sandbox**: no root/sudo access meant Chromium's system
-shared libraries (`libnspr4`, `libnss3`, `libasound2`) couldn't be
-installed, so the two Playwright specs (T034/T043, 14 tests, written and
-confirmed syntactically valid via `playwright test --list`) have never
-actually run. T036/T044's manual scenario walkthroughs are similarly
-unverified for the same reason -- no working browser was available to
-click through them. Both remain genuinely open, not silently assumed
-passing; run `npm run check:a11y` and `tasks.md`'s manual scenarios in
-an environment with a real browser before treating Milestone 1 as fully
-done. See `tasks.md` for the full 57-task breakdown.
+`eslint` both pass clean. All four automated checks
+(`check:extensibility`, `check:disclosure`, `check:determinism`,
+`check:a11y`) now run and pass.
+
+**Update (2026-08-05)**: the prior root/sudo gap is closed (Chromium's
+system libraries were installed via `sudo npx playwright install-deps
+chromium` in a session with sudo access). `check:a11y` (T034/T043's 14
+Playwright tests) ran for real for the first time and initially failed
+5 of 14 -- genuine defects invisible to static `playwright test --list`
+validation, not environment noise: an axe heading-order violation and a
+broken FIFO-replacement flow in Compare Variants, a non-focusable
+scrollable region on the Document step, and (the most significant) the
+Chunking step's strategy toggle resetting query/stepper state on every
+switch, contradicting spec.md's own Edge Cases section, plus a
+resulting stepper-jump focus-target bug on the Retrieval step. All 5
+are now fixed; `check:a11y` passes 14/14, re-run twice with no flake.
+T036 (US1's manual-scenario walkthrough) is done, including the two
+scenarios not covered by the Playwright specs' assertions
+(chunking-strategy boundary difference, non-color chart distinction
+under emulated color-vision deficiency), verified with an ad hoc script
+against the dev server. T044 (US3's manual-scenario walkthrough) is
+also done, verified via mouse-click interaction (not just keyboard) --
+all four of spec.md US3's acceptance scenarios confirmed, including
+that the FIFO-replacement fix from T036 holds for mouse input too, not
+only keyboard. **T051 (the final `npm run check:all` + full
+quickstart.md manual-scenario re-run) is also done -- all 57 of 57
+tasks in `tasks.md` are complete, and Milestone 1's Definition of Done
+is met.** T051's pass re-confirmed the two quickstart.md scenarios not
+directly exercised by T036/T044 -- US1's full 5-step pipeline and US2's
+home page discovery -- against a real browser for the first time (their
+only prior evidence was a historical "verified via Playwright
+screenshots during the original build" claim); no further defects
+found. See `tasks.md` T036/T044/T051 for the full defect list and
+fixes, and `tasks.md` for the full 57-task breakdown.
 
 **Scope**: The `ConceptModule` contract and central registry; the RAG
 module's Pipeline Walkthrough (Document -> Chunking -> Embedding ->
@@ -44,24 +65,34 @@ variants).
   toggle) -- **built** 2026-08-04 (`RetrievalStep.tsx`, `ChunkingStep.tsx`,
   `sampleDocs.ts`'s `chunkTextBySentence`). Filtering is applied before
   Top-K slicing per the corrected FR-013 composition order.
-- SC-001 and SC-004 verified manually via Playwright screenshots during
-  the original build. SC-006 (determinism) -- **verified** by
+- SC-001 -- **re-verified** 2026-08-05 against a real Chromium build
+  (T051): a first-time visitor's path from the home page through the
+  RAG card to a completed pipeline walkthrough (ranked results,
+  assembled prompt, disclosed simulated answer) was confirmed
+  end-to-end, not just via the original build's historical Playwright
+  screenshots. SC-004 remains as verified manually via Playwright
+  screenshots during the original build (T050, 375px-viewport
+  readability -- not part of quickstart.md's 8-scenario list T051
+  re-ran). SC-006 (determinism) -- **verified** by
   `scripts/checks/determinism.ts` against the pinned "coffee" fixture,
   passing. SC-007 and SC-008 (threshold-empties-results,
-  chunking-strategy-produces-different-boundaries) are implemented and
-  structurally correct (filter-before-Top-K order; sentence-boundary
-  algorithm produces differing `(start,end)` pairs) but **not yet
-  re-verified by actually clicking through the UI** -- no working
-  browser was available in the implementing sandbox (see Status above).
+  chunking-strategy-produces-different-boundaries) -- **verified**
+  2026-08-05 against a real Chromium build: `check:a11y`'s threshold
+  test passes, and an ad hoc script confirmed the coffee/size-60 fixture
+  produces 6 fixed-size vs. 10 sentence-boundary chunks with genuinely
+  different `(start,end)` pairs. Verifying this surfaced a real bug in
+  the chunking-strategy toggle (it was resetting stepper/query state on
+  every switch, contradicting spec.md's Edge Cases section) -- now
+  fixed, see `tasks.md` T036.
 - SC-002 (`check:extensibility`, now also covering FR-001's
   registry-uniqueness rule) and SC-003 (`check:disclosure`) --
-  **verified**, both pass. SC-005 (`check:a11y`) -- the two Playwright
-  specs are written (T034/T043, 14 tests) and pass Playwright's own
-  static validation (`playwright test --list`), but **have never
-  actually executed**: this sandbox has no root access to install
-  Chromium's required system libraries. This is the one remaining
-  automated-check gap, and it's an execution-environment gap, not a
-  known code defect.
+  **verified**, both pass. SC-005 (`check:a11y`) -- **verified**
+  2026-08-05: the two Playwright specs (T034/T043, 14 tests) now
+  actually run against a real Chromium build (system libraries
+  installed via `sudo npx playwright install-deps chromium`) and pass
+  14/14, re-run twice with no flake. The first real run failed 5 tests;
+  all 5 were genuine defects (not flaky/environment noise), now fixed
+  -- see `tasks.md` T036 for the full list.
 - User Story 4's contract (the `ConceptModule` interface + registry
   pattern) exists and type-checks; its full acceptance scenario is only
   verifiable once a second module exists (Milestone 5).
@@ -262,17 +293,33 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.5.0 -- 2026-08-04, `/speckit.implement` ran: FR-013,
-FR-014, FR-001, and Phase 6.5's accessibility-closure work are now built
-and type-check/lint clean; `check:extensibility`/`check:disclosure`/
-`check:determinism` pass. `check:a11y` and the manual scenario
-walkthroughs (T036/T044) remain unverified -- not failing, genuinely
-untested -- because the implementing sandbox had no root access to
-install Chromium's system libraries. Re-run `npm run check:all` and the
-manual scenarios in an environment with a working browser before
-considering Milestone 1's Definition of Done fully met.
+**Version**: 1.7.0 -- 2026-08-05, **Milestone 1's Definition of Done is
+fully met -- all 57 of 57 tasks in `tasks.md` are complete.** The
+root-access gap blocking `check:a11y` and manual browser validation is
+closed (`sudo npx playwright install-deps chromium`); all four
+automated checks now pass (`npm run check:all`), and all three
+previously-blocked tasks -- T036 (US1 manual scenarios), T044 (US3
+manual scenarios), T051 (final `check:all` + full quickstart.md
+8-scenario re-run) -- are done. The first real `check:a11y` run failed
+5/14 tests -- genuine defects, not environment noise -- all now fixed:
+an axe heading-order violation and a broken FIFO-replacement flow in
+Compare Variants, a non-focusable scrollable region on the Document
+step, the chunking-strategy toggle resetting query/stepper state on
+every switch (contradicting spec.md's Edge Cases section), and a
+resulting stepper-jump focus-target bug on the Retrieval step. T051's
+final pass additionally re-confirmed SC-001 (home-page-to-result path)
+against a real browser and found no further defects.
 
-Supersedes 1.4.0 (2026-08-04, FR-001's registry id-uniqueness rule and
+Supersedes 1.6.0 (2026-08-05, the root-access gap blocking `check:a11y`
+closed; all four automated checks passed via `npm run check:all`, and
+T036's manual-scenario walkthrough was done, with T044/T051 still
+open), 1.5.0 (2026-08-04, `/speckit.implement` ran: FR-013, FR-014,
+FR-001, and Phase 6.5's accessibility-closure work built and
+type-check/lint clean; `check:extensibility`/`check:disclosure`/
+`check:determinism` passed, but `check:a11y` and the manual scenario
+walkthroughs (T036/T044) were unverified because the implementing
+sandbox had no root access to install Chromium's system libraries), and
+1.4.0 (2026-08-04, FR-001's registry id-uniqueness rule and
 the `checklists/accessibility.md`-driven FR-005/FR-009/FR-011/FR-014
 refinements added as required scope) and 1.3.0 (2026-08-03, FR-013/FR-014
 confirmed unimplemented via `/speckit.clarify`, not merely unverified;

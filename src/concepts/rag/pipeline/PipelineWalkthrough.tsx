@@ -38,11 +38,11 @@ export function PipelineWalkthrough() {
     setStepIndex(Math.max(0, Math.min(STEPS.length - 1, i)));
   }
 
-  // Switching the active document or the chunking strategy both invalidate
-  // any previously computed chunk set, so Generation must never display a
-  // prompt built from chunks that no longer exist (spec.md Edge Cases):
-  // reset query/results and return to the Document step right in the
-  // event handler, rather than reacting after the fact in an effect.
+  // Switching the active document invalidates the query and any computed
+  // chunk-based state, so Generation must never display a prompt built
+  // from a different document's chunks (spec.md Edge Cases): reset
+  // query/results and return to the Document step right in the event
+  // handler, rather than reacting after the fact in an effect.
   function handleDocSelect(id: string) {
     setDocId(id);
     setQuery("");
@@ -50,11 +50,16 @@ export function PipelineWalkthrough() {
     setStepIndex(0);
   }
 
+  // A chunking-strategy switch is a lighter invalidation than a document
+  // switch (spec.md Edge Cases): Retrieval re-runs against the new chunk
+  // set automatically (it derives its own ranking from chunkSize/overlap/
+  // chunkingStrategy props), so only the previously-copied `results`
+  // snapshot used by Generation needs clearing -- the query text and
+  // stepper position must NOT reset, so the learner stays on the
+  // Chunking step and sees the new boundaries directly.
   function handleChunkingStrategy(s: ChunkingStrategy) {
     setChunkingStrategy(s);
-    setQuery("");
     setResults([]);
-    setStepIndex(0);
   }
 
   // Move keyboard focus to the newly active step's first interactive
@@ -72,6 +77,7 @@ export function PipelineWalkthrough() {
     if (!container) return;
     const target =
       container.querySelector<HTMLElement>(`[data-doc-chip="${docId}"]`) ??
+      container.querySelector<HTMLElement>("[data-primary-focus]") ??
       container.querySelector<HTMLElement>(FOCUSABLE_SELECTOR) ??
       container;
     target.focus();
