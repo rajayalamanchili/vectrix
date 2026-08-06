@@ -17,14 +17,14 @@ command based on feature context and requirements.
 - [x] CHK001 Are numeric ranges (min/max/step/default) specified in spec.md itself for temperature (FR-012), RAG-Fusion's N (FR-013), and HyDE's hypothesis count (FR-014), or only left to plan-level decision -- given spec.md 001 hit this identical gap for its own sliders and resolved it by stating exact ranges at the spec level? [Completeness, Gap, Spec §FR-012, §FR-013, §FR-014]
 - [x] CHK002 Is the learner-facing behavior specified for when a key fails FR-003's local format check specifically (blocked submission? an inline message? does it differ from a failed live API call's error)? [Completeness, Gap, Spec §FR-003]
 - [x] CHK003 Does spec.md require "expected chunk" (EvalPair, Key Entities) to be selected from the active document's actual chunk list, or does it leave open free-text entry that could silently make a pair unscoreable if mistyped? [Completeness, Gap, Spec §Key Entities, §FR-011]
-- [ ] CHK004 For a partial multi-call failure (Edge Cases), does FR-007's "option to retry" resume from only the failed call, or restart the entire HyDE/RAG-Fusion sequence -- given a restart would re-incur cost for calls that already succeeded? [Completeness, Gap, Spec §FR-007, §Edge Cases]
-- [ ] CHK005 Beyond "clearly state... whether each is executable" (FR-009), is the actual UI treatment specified for GraphRAG/Self-RAG/Agentic RAG in Real Mode (e.g., a disabled run affordance with explanation vs. no affordance change from Simulated Mode at all)? [Completeness, Gap, Spec §FR-009]
+- [x] CHK004 For a partial multi-call failure (Edge Cases), does FR-007's "option to retry" resume from only the failed call, or restart the entire HyDE/RAG-Fusion sequence -- given a restart would re-incur cost for calls that already succeeded? [Completeness, Gap, Spec §FR-007, §Edge Cases]
+- [x] CHK005 Beyond "clearly state... whether each is executable" (FR-009), is the actual UI treatment specified for GraphRAG/Self-RAG/Agentic RAG in Real Mode (e.g., a disabled run affordance with explanation vs. no affordance change from Simulated Mode at all)? [Completeness, Gap, Spec §FR-009]
 - [x] CHK006 Is the UI behavior specified for attempting to run an evaluation with zero `EvalPair`s defined, or only implied by US6 Acceptance Scenario 1's "at least one pair" precondition? [Completeness, Gap, Spec §User Story 6]
 - [x] CHK007 Is there a requirement or scenario describing how a learner corrects/re-enters an API key after an invalid-key failure (FR-007, SC-004), or does spec.md cover only initial entry (FR-003) and generic failure+fallback? [Completeness, Gap, Spec §FR-003, §FR-007]
 
 ## Requirement Clarity
 
-- [ ] CHK008 Does SC-003's 60-second window start at Real Mode toggle activation (including however long the learner takes to type/paste a key) or at key-submission, given typing time isn't something the system controls? [Clarity, Ambiguity, Spec §SC-003]
+- [x] CHK008 Does SC-003's 60-second window start at Real Mode toggle activation (including however long the learner takes to type/paste a key) or at key-submission, given typing time isn't something the system controls? [Clarity, Ambiguity, Spec §SC-003]
 - [x] CHK009 Is "call" defined precisely enough for FR-010/SC-008's estimated-call-count requirement (e.g., does one batched embeddings request for multiple texts count as one call or many) for a reader to verify SC-008 from spec.md alone? [Clarity, Ambiguity, Spec §FR-010, §SC-008]
 - [x] CHK010 Does FR-008's "visibly surfaced" mean each intermediate step (hypothesis, query variant) appears progressively as its own call completes, or only that all steps are shown together once the full sequence finishes? [Clarity, Ambiguity, Spec §FR-008]
 - [x] CHK011 Is it specified how multiple HyDE hypothetical-answer embeddings combine before retrieval (e.g., averaged into one vector vs. multiple independent retrievals), given US5 Scenario 6 requires the learner to observe them "agree or disagree" before a single retrieval runs? [Clarity, Gap, Spec §FR-014, §User Story 5 Scenario 6]
@@ -36,7 +36,7 @@ command based on feature context and requirements.
 
 - [x] CHK015 Does FR-008 name the fusion algorithm RAG-Fusion's real execution must use, or could an implementation silently diverge from the "Reciprocal Rank Fusion" already named in the existing Compare Variants explanatory text for that same variant? [Consistency, Gap, Spec §FR-008]
 - [x] CHK016 Does the Edge Case "What happens if two different API providers' key formats are both accepted" imply multiple simultaneously-configured providers are in scope, which would be inconsistent with the rest of spec.md's singular "the configured provider" framing? [Consistency, Ambiguity, Spec §Edge Cases]
-- [ ] CHK017 Does FR-011's evaluation feature (which can trigger a real retrieval call per `EvalPair` per configuration tested) have a pre-execution cost/call disclosure requirement parallel to FR-010's for HyDE/RAG-Fusion, or is that disclosure scoped only to variant execution? [Consistency, Gap, Spec §FR-010, §FR-011]
+- [x] CHK017 Does FR-011's evaluation feature (which can trigger a real retrieval call per `EvalPair` per configuration tested) have a pre-execution cost/call disclosure requirement parallel to FR-010's for HyDE/RAG-Fusion, or is that disclosure scoped only to variant execution? [Consistency, Gap, Spec §FR-010, §FR-011]
 
 ## Acceptance Criteria Quality
 
@@ -46,7 +46,7 @@ command based on feature context and requirements.
 
 ## Scenario Coverage
 
-- [ ] CHK021 Is there an acceptance scenario covering a learner switching back to a sample document after already having entered a custom one (the reverse of User Story 3's sample-to-custom direction), or is only the sample-being-replaced direction covered? [Coverage, Gap, Spec §User Story 3]
+- [x] CHK021 Is there an acceptance scenario covering a learner switching back to a sample document after already having entered a custom one (the reverse of User Story 3's sample-to-custom direction), or is only the sample-being-replaced direction covered? [Coverage, Gap, Spec §User Story 3]
 
 ## Edge Case Coverage
 
@@ -55,7 +55,7 @@ command based on feature context and requirements.
 
 ## Non-Functional Requirements
 
-- [ ] CHK024 Does FR-015's accessible-name/keyboard-operability requirement extend to dynamic content -- the key-format-validation error message and FR-007's failure banners -- (e.g., programmatic association or live-region announcement), or does it cover only the control widgets it enumerates? [Coverage, Gap, Spec §FR-015, §FR-007]
+- [x] CHK024 Does FR-015's accessible-name/keyboard-operability requirement extend to dynamic content -- the key-format-validation error message and FR-007's failure banners -- (e.g., programmatic association or live-region announcement), or does it cover only the control widgets it enumerates? [Coverage, Gap, Spec §FR-015, §FR-007]
 - [x] CHK025 Is the concurrency model for a multi-call sequence (HyDE, RAG-Fusion) specified as serial or parallel, given this materially changes what "fail closed... stop issuing further calls" (Edge Cases) even means for a batch that's already in flight? [Non-Functional, Gap, Spec §Edge Cases]
 
 ## Dependencies & Assumptions

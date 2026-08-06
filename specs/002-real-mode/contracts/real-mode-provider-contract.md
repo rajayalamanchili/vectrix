@@ -1,9 +1,10 @@
 # Contract: `RealModeProvider` + `ProviderConfig` (supports FR-004, FR-006, FR-008, FR-010, FR-012, FR-013, FR-014)
 
-**Status**: New, this plan. The seam every Real Mode caller depends on
-instead of a specific vendor's API directly -- see research.md's
-provider-abstraction decision (revised 2026-08-05 to be config-driven
-rather than hardcoded to one vendor).
+**Status**: New, this plan; re-synced 2026-08-06 against the
+`checklists/requirements.md` follow-up. The seam every Real Mode caller
+depends on instead of a specific vendor's API directly -- see
+research.md's provider-abstraction decision (revised 2026-08-05 to be
+config-driven rather than hardcoded to one vendor).
 
 ## Interface
 
@@ -67,6 +68,15 @@ identifying which call in the sequence failed (spec.md Edge Cases: "fail
 closed... not silently proceed with incomplete results presented as
 complete").
 
+**Retry resumes, it doesn't restart** (FR-007, checklist follow-up
+2026-08-06): the provider itself has no concept of a "sequence" -- it's
+the caller (`VariantsComparison.tsx`'s orchestration, per
+`VariantExecutionTrace` in data-model.md) that must retain the results of
+whichever calls already succeeded before the failure and re-issue only
+the one named by `stage`, not replay the whole HyDE/RAG-Fusion sequence
+from its first call. This keeps a retry from re-incurring cost (and a
+new API charge) for calls that already completed.
+
 ## Key-format pre-validation (FR-003)
 
 Before `RealModeProvider` is ever constructed with a key, the Real Mode
@@ -88,4 +98,6 @@ change, not a rewrite.
   variants (naive, HyDE, RAG-Fusion all use plain completions).
 - No retry-with-backoff inside the provider itself -- FR-007's "retry"
   option (User Story 4 Acceptance Scenario 2) is a UI-level "run this
-  call again," not an automatic provider-level retry policy.
+  call again," not an automatic provider-level retry policy. For a
+  multi-call sequence specifically, "run this call again" means only the
+  failed call (see Error contract above), not the whole sequence.

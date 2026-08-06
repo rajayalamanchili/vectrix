@@ -1,6 +1,6 @@
 # Phase 0 Research: Real Mode for the RAG Concept Module
 
-**Feature**: `002-real-mode` | **Date**: 2026-08-05
+**Feature**: `002-real-mode` | **Date**: 2026-08-05, re-synced 2026-08-06
 
 spec.md 002's Assumptions deliberately deferred the embeddings/generation
 provider choice to this plan. This document resolves that, plus the
@@ -8,7 +8,13 @@ other genuinely undecided technical questions the spec surfaces:
 projection method, key storage, provider abstraction shape, call-count
 estimation, multi-hypothesis/multi-variant retrieval mechanics, and the
 testing approach for the four new/extended Success Criteria (SC-004,
-SC-006, SC-007, SC-008, SC-009).
+SC-006, SC-007, SC-008, SC-009). A `checklists/requirements.md`
+follow-up (2026-08-06, 27/27 items closed) added two further technical
+decisions this document now also records -- retry semantics for a
+partial multi-call failure (FR-007) and the UI treatment for
+non-executable variants (FR-009) -- and extended the call-count and
+testing-approach decisions below to cover FR-011's evaluation-run
+disclosure and FR-007's retry-resume behavior respectively.
 
 ## Decision: Provider abstraction is provider-agnostic; OpenAI is the one default config, not a hardcoded choice
 
@@ -220,6 +226,23 @@ the fixed corpus-embed/final-generate calls -- rejected because it would
 under-count and make SC-008's "matches the actual number of calls made"
 check fail against the real implementation.
 
+**Extension (FR-011, checklist follow-up 2026-08-06): evaluation-run
+call-count estimate.** An evaluation run repeats one configuration's
+retrieval per `EvalPair`, across every configuration tested, so its
+total is `evalPairs.length * configurationsTested.length *
+callsPerConfiguration(configurationId)` -- reusing exactly the `3` /
+`M + 3` / `N + 3` per-configuration figures above rather than a new
+formula. This mirrors FR-010's disclosure requirement (shown before any
+evaluation call is made) instead of leaving evaluation as a scope
+exception, since FR-011 can trigger just as many real calls as a single
+HyDE/RAG-Fusion run -- more, in fact, once multiple pairs and
+configurations multiply it out. Rejected alternative: scoping FR-010's
+disclosure to variant execution only and leaving evaluation
+undisclosed -- rejected because a learner running 10 pairs against a
+`hydeCount=3` HyDE configuration triggers 60 calls with no warning
+shown, which is exactly the surprise-cost problem FR-010 exists to
+prevent for variants.
+
 ## Decision: HyDE multi-hypothesis vs. RAG-Fusion multi-variant retrieval mechanics
 
 **Decision**: These stay mechanically distinct, matching how the two
@@ -254,6 +277,60 @@ explicitly requires to be inspectable.
 (mirroring RAG-Fusion) -- rejected as not what the literature calls
 "HyDE," and spec.md's Scenario 6 wording ("before retrieval runs,"
 singular) doesn't support it either.
+
+## Decision: Retry resumes a failed multi-call sequence, it doesn't restart it (FR-007)
+
+**Decision**: On a mid-sequence HyDE/RAG-Fusion failure, `ErrorBanner.tsx`'s
+Retry action re-issues only the one call named by `RealModeError.stage`,
+reading whichever hypotheses/query-variants `VariantExecutionTrace`
+already holds for calls before that stage and appending the retried
+call's result to that same trace, rather than clearing the trace and
+re-running the sequence from its first call.
+
+**Rationale**: FR-008 already requires serial execution specifically so
+"a mid-sequence failure always occurs before any later call has been
+issued" -- which means the caller can state, unambiguously, exactly
+which calls already succeeded at the moment of failure. Discarding those
+results on retry would silently re-spend the learner's own API budget on
+calls that already returned a perfectly good result, for no teaching
+benefit; resuming is strictly cheaper and no harder to implement, since
+the serial-execution requirement already tracks per-call state
+incrementally (`VariantExecutionTrace`'s array fields, populated one
+element per completed call).
+
+**Alternatives considered**: Restarting the full sequence on every
+retry -- simpler to reason about in isolation, but rejected because it
+contradicts the reason FR-008 mandates serial (not parallel) execution
+in the first place, and because it directly costs the learner real money
+for calls that already succeeded, which nothing in spec.md asks for.
+
+## Decision: Non-executable variants get a disabled Run affordance, not a hidden one (FR-009)
+
+**Decision**: `EXECUTABLE_VARIANT_IDS = ["naive", "hyde", "fusion"]`, a
+constant local to `VariantsComparison.tsx` (not a `variantData.ts`
+field -- see data-model.md's "Executable variant set" section).  When
+Real Mode is active, GraphRAG/Self-RAG/Agentic RAG's Run control renders
+`disabled` with adjacent text ("Explanatory only this milestone") rather
+than being removed from the DOM or left looking identical to Simulated
+Mode's version.
+
+**Rationale**: FR-009 already requires the UI to "clearly state...
+whether each is executable" -- a disabled-with-explanation control
+states this at the exact point a learner would try to act on it (the
+Run button itself), which is a stronger, more discoverable signal than
+static explanatory text elsewhere on the page that a learner reaching
+for "Run" might not have read. Keeping the control present (not
+removed) also means `check:a11y`'s existing disabled-control Tab-removal
+rule (001's FR-011 rule (e), reused by FR-015) continues to apply to it
+without a special case.
+
+**Alternatives considered**: Removing the Run control entirely for these
+three variants in Real Mode -- rejected because a missing control is
+ambiguous (is it broken? not loaded yet?) in a way a disabled control
+with inline text isn't. Leaving the control fully enabled and failing at
+click-time with an error -- rejected because it invites exactly the
+"expecting real execution if it isn't implemented yet" outcome FR-009
+explicitly prohibits.
 
 ## Decision: Compare Variants gets independent document/query state for Real Mode (US5, US6)
 
@@ -302,7 +379,11 @@ introducing a new framework, splitting each new/changed SC the same way
   `tests/real-mode/failure-fallback.spec.ts`, Playwright route
   interception returning canned 401/429/network-error responses for
   each call type, asserting the specific error banner + working
-  fallback button appear.
+  fallback button appear. Extended (FR-007, checklist follow-up
+  2026-08-06): for a mid-sequence HyDE/RAG-Fusion failure, also assert
+  Retry issues exactly one new request (the failed call) and the
+  already-succeeded earlier calls' results stay visible unchanged, not
+  re-fetched -- proving resume, not restart.
 - **SC-006** (no API key leaves the browser) -- two halves, per
   001's precedent of pairing a cheap static check with a real
   browser-driven one:
@@ -330,7 +411,12 @@ introducing a new framework, splitting each new/changed SC the same way
   existing two (same `npm run check:a11y` command, same
   `@axe-core/playwright` + real-keyboard-event pattern), covering the
   toggle, key input, temperature/N/hypothesis-count sliders, and the
-  custom-document textarea.
+  custom-document textarea. Extended (FR-015, checklist follow-up
+  2026-08-06): also assert the key-format error is
+  `aria-describedby`-associated with the key input, and that a
+  triggered `ErrorBanner` carries `role="alert"`/`aria-live` -- FR-015's
+  bar now covers dynamic content, not only the enumerated control
+  widgets.
 
 All of the above mock the provider's HTTP responses -- deterministic,
 free, CI-safe, no real API key needed. One real end-to-end run against

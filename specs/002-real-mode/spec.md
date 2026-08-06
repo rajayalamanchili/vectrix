@@ -4,7 +4,11 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- clarified 2026-08-05, pending `/speckit.plan`
+**Status**: Draft -- clarified 2026-08-05, `plan.md` drafted 2026-08-05,
+checklist follow-up 2026-08-06 closed the remaining gaps in
+`checklists/requirements.md` (27/27 complete). `plan.md` predates this
+follow-up's FR-007/FR-009/FR-011/FR-015/SC-003/User-Story-3 changes and
+needs a re-sync pass before `/speckit.tasks` runs.
 
 **Input**: User description: "Opt-in Real Mode for the RAG concept module:
 bring-your-own API key for real embeddings and generation, real document
@@ -89,6 +93,41 @@ top of the existing Simulated Mode without replacing it"
   CORS-support Assumption for the configured provider? → A: Yes, both --
   a 30-second per-call timeout (Edge Cases) and a load-bearing
   Assumption naming direct browser-origin support as required.
+
+### Session 2026-08-06 (checklist follow-up, remaining items)
+
+- Q: For a partial multi-call failure mid-sequence (HyDE/RAG-Fusion),
+  does FR-007's retry option resume from only the failed call, or
+  restart the entire sequence? → A: Resume from the failed call only --
+  calls that already succeeded are not re-issued, since FR-008's serial
+  execution makes it unambiguous exactly which calls completed before
+  the failure.
+- Q: Beyond stating whether GraphRAG/Self-RAG/Agentic RAG are executable
+  (FR-009), what's the actual UI treatment for them in Real Mode? → A: A
+  disabled "Run" affordance with an inline explanation ("Explanatory
+  only this milestone") -- the control stays visible but inert, rather
+  than disappearing or looking identical to Simulated Mode's version.
+- Q: Does SC-003's 60-second window start at Real Mode toggle activation
+  or at key submission? → A: At key submission -- the clock starts once
+  a format-valid key is entered and the first real API call is
+  triggered, since typing/pasting time isn't something the system
+  controls.
+- Q: Does FR-011's evaluation feature need a pre-execution call-count
+  disclosure parallel to FR-010's? → A: Yes -- before running an
+  evaluation, the system shows the estimated total call count for the
+  full run (every `EvalPair` against every configuration tested), using
+  the same FR-016 call definition as FR-010.
+- Q: Is there an acceptance scenario for switching back to a sample
+  document after a custom one was entered? → A: Yes -- add it as User
+  Story 3 Acceptance Scenario 3, symmetric with the existing Edge Case
+  that requires stale sample questions to be cleared in the other
+  direction.
+- Q: Does FR-015's accessible-name/keyboard-operability requirement
+  extend to dynamic content -- the key-format-validation error and
+  FR-007's failure banners? → A: Yes -- each error MUST be
+  programmatically associated with the control it describes (or
+  announced via a live region for banners not tied to a single
+  control), not conveyed by visual styling alone.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -190,6 +229,11 @@ documents.
    learner submits it, **Then** the app rejects it with a clear message
    stating the limit, rather than silently truncating it or sending an
    oversized request to the API.
+3. **Given** a learner has replaced a sample document with a custom one,
+   **When** they switch back to a sample document, **Then** the custom
+   document and question are cleared and the sample document's own
+   question set is restored, rather than leaving the custom text mixed
+   with sample-document state.
 
 ---
 
@@ -411,7 +455,12 @@ and see a simple recall@K number for each, side by side.
 - **FR-007**: Any Real Mode API failure (embeddings, generation, or a
   variant's intermediate call) MUST surface a clear, specific error and
   MUST offer an explicit fallback to Simulated Mode -- never silently
-  substituting simulated output while implying it is real.
+  substituting simulated output while implying it is real. For a
+  failure partway through a multi-call sequence (HyDE, RAG-Fusion), the
+  retry option MUST resume from only the failed call, re-using the
+  results already obtained from calls that succeeded earlier in that
+  sequence, rather than restarting and re-incurring cost for calls that
+  already completed.
 - **FR-008**: HyDE and RAG-Fusion MUST be genuinely executable in Real
   Mode, with each variant's intermediate steps (HyDE's hypothetical
   answer; RAG-Fusion's per-variant queries and rankings before fusion)
@@ -430,6 +479,12 @@ and see a simple recall@K number for each, side by side.
   clearly state in the UI whether each is executable in this milestone
   or remains explanatory-only (per Assumptions below), and MUST NOT let a
   learner run one expecting real execution if it isn't implemented yet.
+  In Real Mode specifically, each of these three variants' "Run"
+  affordance MUST remain visible but disabled, with an inline
+  explanation (e.g. "Explanatory only this milestone") -- not removed
+  outright and not left visually identical to Simulated Mode's version,
+  so the learner sees explicitly why it can't be run rather than
+  wondering why the control is missing or inert.
 - **FR-010**: Before executing any variant requiring more than one
   embedding/generation call (HyDE, RAG-Fusion), the system MUST show an
   estimated call count to the learner before making any of those calls,
@@ -451,7 +506,12 @@ and see a simple recall@K number for each, side by side.
   free text), so a pair can never be silently unscoreable due to a
   mistyped reference. Attempting to run an evaluation with zero pairs
   defined MUST be disabled, with an explanatory message, rather than
-  silently producing an empty or broken result.
+  silently producing an empty or broken result. Before executing an
+  evaluation run, the system MUST show an estimated total call count for
+  the full run (every `EvalPair` against every configuration tested),
+  using "call" as defined in FR-016 -- the same pre-execution disclosure
+  FR-010 requires for HyDE/RAG-Fusion, not a scope limited to variant
+  execution alone.
 - **FR-012**: The Generation step, when Real Mode is active, MUST expose
   a learner-adjustable temperature control ranging 0.0-1.0 in steps of
   0.1, default 0.3, that is passed through to the real model call.
@@ -470,7 +530,11 @@ and see a simple recall@K number for each, side by side.
   input) MUST be operable via keyboard alone and MUST have an accessible
   name that describes its specific effect, matching the standard set by
   spec.md 001's FR-011 rather than introducing a lower bar for
-  Real-Mode-only controls.
+  Real-Mode-only controls. This extends to the dynamic content those
+  controls produce: the key-format-validation error (FR-003) MUST be
+  programmatically associated with the key input it describes, and
+  FR-007's failure banners MUST be announced via a live region, so an
+  assistive-technology user is not only aware of these errors visually.
 - **FR-016**: "A call," for FR-010's estimate and SC-004/SC-005/SC-008's
   measurement, means one HTTP request to the configured provider,
   regardless of how many texts are batched into it (e.g. embedding all
@@ -521,8 +585,10 @@ and see a simple recall@K number for each, side by side.
   an API key, custom document input, or any Real-Mode-specific input at
   any point while using Simulated Mode.
 - **SC-003**: With a valid API key configured, a learner can go from
-  activating Real Mode to seeing a real, disclosed-as-real embedding
-  chart in under 60 seconds.
+  submitting that key (the moment a format-valid key is entered and the
+  first real API call is triggered -- not from Real Mode toggle
+  activation, since typing/pasting time isn't system-controlled) to
+  seeing a real, disclosed-as-real embedding chart in under 60 seconds.
 - **SC-004**: 100% of Real Mode API failure paths, scoped to FR-016's
   canonical call-type list, result in a specific visible error and a
   working fallback to Simulated Mode -- verified by deliberately

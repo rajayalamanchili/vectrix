@@ -1,6 +1,6 @@
 # Phase 1 Data Model: Real Mode for the RAG Concept Module
 
-**Feature**: `002-real-mode` | **Date**: 2026-08-05
+**Feature**: `002-real-mode` | **Date**: 2026-08-05, re-synced 2026-08-06
 
 All entities are client-side, in-memory TypeScript types -- no
 persistence layer (per spec.md 002 Assumptions). Types marked
@@ -77,7 +77,24 @@ generalizes, but is not a second value shipped here.
 |---|---|---|
 | `kind` | `"invalid-key" \| "network" \| "rate-limit" \| "partial-failure" \| "other"` | Drives which specific message + whether a retry vs. fallback-only action is offered (FR-007, SC-004). `"partial-failure"` is RAG-Fusion/HyDE-specific -- a mid-sequence call failure (spec.md Edge Cases). |
 | `message` | `string` | Plain-language, specific -- never a raw provider error string verbatim (FR-007 requires "clear, specific," not "whatever the API returned"). |
-| `stage` | `string` | Which step/call failed (e.g. `"embed-corpus"`, `"generate-hypothesis-2"`), used by `tests/real-mode/failure-fallback.spec.ts` to assert the right banner appears for the right failure. |
+| `stage` | `string` | Which step/call failed (e.g. `"embed-corpus"`, `"generate-hypothesis-2"`), used by `tests/real-mode/failure-fallback.spec.ts` to assert the right banner appears for the right failure, and by Retry (below) to know exactly which call to re-issue. |
+
+**Retry resumes at `stage`, it never restarts the sequence** (FR-007,
+checklist follow-up 2026-08-06): `ErrorBanner.tsx`'s Retry action re-runs
+only the call named by `error.stage`. It does this by reading whichever
+partial results `VariantExecutionTrace` (below) already holds for calls
+before `stage` and continuing from there -- those results are never
+discarded or re-fetched, so a retry after, say, RAG-Fusion's third of
+five query variants fails costs exactly one more call, not five.
+
+**Correcting a rejected key, in place** (FR-003, checklist follow-up
+2026-08-06): `"invalid-key"` (from a failed live call) and a local
+`keyFormatPattern` mismatch (before any call is made) render distinct
+wording in the same key-input error slot. Neither clears
+`RealModeSession.apiKey`'s input value -- the learner edits the existing
+text and resubmits; submission stays blocked only while the current
+value fails the format check, never as a lingering state after a
+live-call rejection is corrected.
 
 ## RealEmbeddingResult **(new)** -- replaces `EmbeddedPoint` when Real Mode is active
 
@@ -135,6 +152,28 @@ type VariantExecutionTrace =
 Every variant of the union also implicitly carries `finalAnswer: string`
 (the last generation call's output) and an optional `error?:
 RealModeError` for a partial-failure mid-sequence (spec.md Edge Cases).
+Array fields (`hypotheses`, `queryVariants`) are populated incrementally,
+one element per completed call (FR-008's serial-execution requirement) --
+on a mid-sequence failure, whatever elements already exist stay in place
+rather than being cleared, which is what makes FR-007's resume-not-
+restart retry possible: Retry re-issues only the one call `error.stage`
+names and appends its result to the array already held here, instead of
+re-running the whole sequence from an empty trace.
+
+## Executable variant set (FR-009)
+
+Not a new type -- a fixed constant, `EXECUTABLE_VARIANT_IDS = ["naive",
+"hyde", "fusion"]`, local to `VariantsComparison.tsx` (spec.md
+Assumptions: only these three are genuinely executable this milestone;
+`variantData.ts`'s existing `RagVariant[]` shape is unchanged, since
+executability is a Real-Mode-only concern, not a property of the
+explanatory data Simulated Mode also reads). When Real Mode is active,
+any `RagVariant` whose `id` isn't in this set (`"graphrag"`, `"self-rag"`,
+`"agentic"`) renders its Run control `disabled`, with adjacent text
+reading "Explanatory only this milestone" (FR-009, checklist follow-up
+2026-08-06) -- the control stays visible and reachable via Tab (so
+`check:a11y`'s disabled-control rule still applies to it) rather than
+being removed from the DOM.
 
 ## EvalPair **(new)**
 
@@ -153,6 +192,26 @@ RealModeError` for a partial-failure mid-sequence (spec.md Edge Cases).
 | `scorePerPair` | `{ evalPairId: string; hit: boolean }[]` | Per-pair detail, so the UI can show which specific pairs the configuration missed, not just an aggregate. |
 | `recallAtK` | `number` | `[0, 1]`, `scorePerPair.filter(hit).length / scorePerPair.length`. |
 
+## Eval call-count estimate (FR-011, checklist follow-up 2026-08-06)
+
+Not a stored field -- a value `callEstimate.ts` computes and
+`EvalPanel.tsx` renders above the Run control, before any evaluation
+call is made, mirroring FR-010's HyDE/RAG-Fusion pre-execution
+disclosure (`data-model.md`'s existing call-count formulas):
+
+```
+evalCallEstimate = evalPairs.length * configurationsTested.length
+  * callsPerConfiguration(configurationId)
+```
+
+where `callsPerConfiguration` is the same per-configuration call count
+`VariantExecutionTrace.callCount` already produces (3 for naive, `hydeCount
++ 3` for HyDE, `fusionN + 3` for fusion) -- an eval run's total cost is
+just that number multiplied across every pair and every configuration
+under test, using FR-016's same "one call" definition. Recomputed live
+whenever `evalPairs`, the configuration selection, or `GenerationParams`
+change.
+
 ## CustomDocumentInput state **(new)** -- Pipeline Walkthrough and Compare Variants, independently
 
 Per research.md's decision that the two views don't share this state:
@@ -162,6 +221,14 @@ Per research.md's decision that the two views don't share this state:
 | `mode` | `"sample" \| "custom"` | Which source is active. |
 | `customText` | `string` | Learner-pasted text, capped at 10,000 characters (FR-005, per `/speckit.clarify`), enforced before any API call is made -- client-side length check, not a server-side one (there is no server). |
 | `customQuestion` | `string` | Replaces the sample-document `sampleQueries` chip list when `mode === "custom"` (spec.md Edge Cases: sample questions must be cleared/marked stale when a custom document replaces the sample one). |
+
+**Reverting to a sample document clears the custom state** (User Story 3
+Scenario 3, checklist follow-up 2026-08-06): switching `mode` from
+`"custom"` back to `"sample"` resets both `customText` and
+`customQuestion` to `""` and restores the target sample document's own
+`sampleQueries` chip list -- the symmetric counterpart of the
+sample-to-custom direction above, so no custom text or stale question
+lingers once a learner has moved back to a sample document.
 
 ## Extended existing types
 

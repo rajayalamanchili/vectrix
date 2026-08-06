@@ -1,7 +1,10 @@
 # Contract: Real Mode automated checks (SC-004, SC-006, SC-007, SC-008, SC-009; regression: SC-001, SC-002 in 002-spec)
 
-**Status**: New and extended checks, this plan. Extends spec.md 001's
-existing four-check contract (`specs/001-core-platform-rag-module/contracts/automated-checks-contract.md`)
+**Status**: New and extended checks, this plan; re-synced 2026-08-06
+against the `checklists/requirements.md` follow-up (`check:a11y`'s
+dynamic-content rule, `failure-fallback.spec.ts`'s retry-resume
+assertion). Extends spec.md 001's existing four-check contract
+(`specs/001-core-platform-rag-module/contracts/automated-checks-contract.md`)
 rather than replacing it -- `check:extensibility` and `check:determinism`
 are unchanged (research.md's scope note); `check:disclosure` gains a
 rule; `check:a11y` gains a spec file; two checks are wholly new.
@@ -44,8 +47,18 @@ is needed.
   input) fails any of 001's existing FR-011 rules (a)-(e) -- Tab
   reachability, visible focus indicator, Enter/Space/Arrow activation,
   non-generic accessible name, disabled-control Tab removal.
+- **New rule** (checklist follow-up 2026-08-06, FR-015's dynamic-content
+  extension): submit a key that fails `ProviderConfig.keyFormatPattern`
+  and assert the resulting error element is programmatically associated
+  with the key input (`aria-describedby` referencing the error's `id`,
+  not merely adjacent in the DOM); separately, trigger a mocked call
+  failure and assert the resulting `ErrorBanner` carries `role="alert"`
+  or `aria-live="assertive"` so it's announced without the learner
+  needing to be focused on it.
 - **Exit code**: `0` = 100% of Real Mode's new controls pass (SC-009,
-  FR-015). `1` = any control fails, printed with selector + failing rule.
+  FR-015), AND the key-format error and failure banners pass the new
+  dynamic-content rule. `1` = any control or dynamic-content case fails,
+  printed with selector + failing rule.
 - **Supports**: SC-009, FR-015, Constitution Principle VII.
 
 ## `check:key-isolation` -- new, two halves
@@ -84,10 +97,16 @@ check:real-mode` (`playwright test tests/real-mode/`):
   generation-call, and a HyDE/RAG-Fusion intermediate call, mock a
   401/429/network-error response and assert (a) the specific
   `RealModeError.kind`-matching message appears, and (b) the fallback-
-  to-Simulated-Mode control is present and works. **Exit**: `0` = all
-  failure paths produce a specific error + working fallback (SC-004
-  fully satisfied, no path silently substitutes simulated output while
-  implying it's real). `1` = any path missing either half.
+  to-Simulated-Mode control is present and works. Additionally
+  (checklist follow-up 2026-08-06, FR-007's retry-resume semantics): for
+  a HyDE/RAG-Fusion sequence that fails on, say, its third call, mock a
+  passing response for Retry and assert (c) exactly one new request is
+  captured (the failed call re-issued) and (d) the trace's
+  already-succeeded first two calls' results are unchanged in the UI,
+  not re-fetched. **Exit**: `0` = all failure paths produce a specific
+  error + working fallback (SC-004 fully satisfied, no path silently
+  substitutes simulated output while implying it's real) AND retry
+  resumes rather than restarts. `1` = any path missing any of the above.
 - **`temperature-effect.spec.ts`**: mock two high-temperature completions
   for the same prompt that differ, and two low-temperature completions
   for the same prompt that are identical; assert the UI reflects both.
