@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PipelineWalkthrough } from "./pipeline/PipelineWalkthrough";
 import { VariantsComparison } from "./variants/VariantsComparison";
+import { RealModeToggle } from "./realMode/RealModeToggle";
 import { openaiProviderConfig } from "./realMode/providerConfigs";
 import type { GenerationParams, RealModeSession } from "./realMode/types";
 
@@ -32,13 +33,9 @@ export function RagConcept() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("pipeline");
   const [realMode, setRealMode] = useState<RealModeSession>(INACTIVE_REAL_MODE_SESSION);
   const [generationParams, setGenerationParams] = useState<GenerationParams>(DEFAULT_GENERATION_PARAMS);
-  // realMode/setRealMode and generationParams/setGenerationParams are
-  // lifted here now (T008) but not yet threaded to children -- the
-  // toggle UI that activates them (RealModeToggle) and the prop wiring
-  // into PipelineWalkthrough/VariantsComparison land in User Story 1
-  // (T011-T013).
-  void realMode;
-  void setRealMode;
+  // generationParams/setGenerationParams are lifted here (T008) but not
+  // yet threaded to children -- that wiring lands alongside the controls
+  // that actually read them (temperature in US4, N/hydeCount in US5).
   void generationParams;
   void setGenerationParams;
 
@@ -60,8 +57,10 @@ export function RagConcept() {
         ))}
       </div>
 
-      {tab === "pipeline" && <PipelineWalkthrough />}
-      {tab === "variants" && <VariantsComparison />}
+      <RealModeToggle realMode={realMode} onRealModeChange={setRealMode} />
+
+      {tab === "pipeline" && <PipelineWalkthrough realMode={realMode} />}
+      {tab === "variants" && <VariantsComparison realMode={realMode} />}
     </div>
   );
 }

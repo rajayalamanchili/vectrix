@@ -5,8 +5,13 @@ import { ragVariants } from "./variantData";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { Badge } from "@/components/ui/Badge";
 import { FlowDiagram } from "@/components/charts/FlowDiagram";
+import type { RealModeSession } from "../realMode/types";
 
-export function VariantsComparison() {
+export function VariantsComparison({ realMode }: { realMode?: RealModeSession }) {
+  // Accepted here (T013) so the prop is already threaded to this view;
+  // real variant execution (naive/HyDE/RAG-Fusion) starts reading it in
+  // US5, once US2 (real embeddings) and US4 (real generation) both exist.
+  void realMode;
   const [selected, setSelected] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
 

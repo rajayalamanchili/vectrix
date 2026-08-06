@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { StepperNav } from "@/components/ui/StepperNav";
 import type { ChunkingStrategy } from "../lib/sampleDocs";
+import type { RealModeSession } from "../realMode/types";
 import { DocumentStep } from "./steps/DocumentStep";
 import { ChunkingStep } from "./steps/ChunkingStep";
 import { EmbeddingStep } from "./steps/EmbeddingStep";
@@ -20,7 +21,12 @@ const STEPS = [
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function PipelineWalkthrough() {
+export function PipelineWalkthrough({ realMode }: { realMode?: RealModeSession }) {
+  // Accepted here (T013) so the prop is already threaded to this view;
+  // individual steps start reading it as each is given a real-execution
+  // path (EmbeddingStep/RetrievalStep in US2, DocumentStep in US3,
+  // GenerationStep in US4).
+  void realMode;
   const [stepIndex, setStepIndex] = useState(0);
   const [docId, setDocId] = useState("coffee");
   const [chunkSize, setChunkSize] = useState(60);

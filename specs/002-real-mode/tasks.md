@@ -64,12 +64,12 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Implement `RealModeToggle.tsx` in `src/concepts/rag/realMode/RealModeToggle.tsx`: the toggle control (FR-002) and the key-entry prompt rendering both disclaimer halves (where-it's-sent + at-your-own-risk, data-model.md's copy) inside an element carrying `data-key-disclaimer="true"` (FR-003), reappearing on every toggle-on
-- [ ] T012 [US1] Add key-format pre-validation (against `ProviderConfig.keyFormatPattern`) and correction-in-place error handling to `RealModeToggle.tsx`: the input retains its value, shows distinct wording for malformed-shape vs. live-rejected, and the error is `aria-describedby`-associated with the input (FR-003, FR-015)
-- [ ] T013 [US1] Wire `RealModeToggle` into `src/concepts/rag/RagConcept.tsx`'s render, threading `RealModeSession` to `PipelineWalkthrough` and `VariantsComparison` (both default inactive)
-- [ ] T014 [US1] [P] Extend `scripts/checks/simulated-disclosure.ts` with the `data-key-disclaimer` rule (non-empty content, both disclaimer halves present) per FR-003
-- [ ] T015 [US1] [P] Create `tests/a11y/real-mode.spec.ts` covering the Real Mode toggle and API key input (Tab reachability, visible focus indicator, Enter/Space activation, non-generic accessible name) plus the key-format error's `aria-describedby` association (SC-009, FR-015)
-- [ ] T016 [US1] Manual scenario validation: quickstart.md scenarios 1-2 (zero-setup preserved; key prompt + disclaimer + malformed-key correction-in-place)
+- [X] T011 [US1] Implement `RealModeToggle.tsx` in `src/concepts/rag/realMode/RealModeToggle.tsx`: the toggle control (FR-002) and the key-entry prompt rendering both disclaimer halves (where-it's-sent + at-your-own-risk, data-model.md's copy) inside an element carrying `data-key-disclaimer="true"` (FR-003), reappearing on every toggle-on
+- [X] T012 [US1] Add key-format pre-validation (against `ProviderConfig.keyFormatPattern`) and correction-in-place error handling to `RealModeToggle.tsx`: the input retains its value, shows distinct wording for malformed-shape vs. live-rejected, and the error is `aria-describedby`-associated with the input (FR-003, FR-015)
+- [X] T013 [US1] Wire `RealModeToggle` into `src/concepts/rag/RagConcept.tsx`'s render, threading `RealModeSession` to `PipelineWalkthrough` and `VariantsComparison` (both default inactive)
+- [X] T014 [US1] [P] Extend `scripts/checks/simulated-disclosure.ts` with the `data-key-disclaimer` rule (non-empty content, both disclaimer halves present) per FR-003
+- [X] T015 [US1] [P] Create `tests/a11y/real-mode.spec.ts` covering the Real Mode toggle and API key input (Tab reachability, visible focus indicator, Enter/Space activation, non-generic accessible name) plus the key-format error's `aria-describedby` association (SC-009, FR-015)
+- [X] T016 [US1] Manual scenario validation: quickstart.md scenarios 1-2 (zero-setup preserved; key prompt + disclaimer + malformed-key correction-in-place)
 
 **Checkpoint**: US1 independently functional -- toggle, key entry/validation/disclaimer complete, Simulated Mode fully unaffected.
 
