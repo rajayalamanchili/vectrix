@@ -1,9 +1,16 @@
-# Contract: Real Mode automated checks (SC-004, SC-006, SC-007, SC-008, SC-009; regression: SC-001, SC-002 in 002-spec)
+# Contract: Real Mode automated checks (SC-004, SC-005, SC-006, SC-007, SC-008, SC-009; regression: SC-001, SC-002 in 002-spec)
 
 **Status**: New and extended checks, this plan; re-synced 2026-08-06
 against the `checklists/requirements.md` follow-up (`check:a11y`'s
 dynamic-content rule, `failure-fallback.spec.ts`'s retry-resume
-assertion). Extends spec.md 001's existing four-check contract
+assertion), then again the same day against a `/speckit.analyze` pass
+that found four further gaps: `check:disclosure` didn't cover
+`RetrievalStep` even though FR-004 names it (F1), `check:a11y` didn't
+cover User Story 6's evaluation controls (C1), `failure-fallback.spec.ts`
+didn't individually exercise each of FR-016's 7 canonical call types
+(E1), and SC-005 had no automated check at all (E2) -- all four are
+folded in below, and SC-005 is now named in this contract's title.
+Extends spec.md 001's existing four-check contract
 (`specs/001-core-platform-rag-module/contracts/automated-checks-contract.md`)
 rather than replacing it -- `check:extensibility` and `check:determinism`
 are unchanged (research.md's scope note); `check:disclosure` gains a
@@ -17,18 +24,26 @@ Supports SC-001 (002-spec).
 
 ## `check:disclosure` -- `scripts/checks/simulated-disclosure.ts`, extended
 
-- **New input**: `EmbeddingStep`, `GenerationStep`, and `RealModeToggle`,
-  additionally rendered (via `react-dom/server`'s `renderToStaticMarkup`)
-  with a fixture `realMode: { active: true, provider: { id: "openai", label: "OpenAI", ... }, ... }` prop.
+- **New input**: `EmbeddingStep`, `RetrievalStep`, `GenerationStep`, and
+  `RealModeToggle`, additionally rendered (via `react-dom/server`'s
+  `renderToStaticMarkup`) with a fixture
+  `realMode: { active: true, provider: { id: "openai", label: "OpenAI", ... }, ... }` prop.
+  `RetrievalStep` is included here (`/speckit.analyze` finding F1,
+  2026-08-06) because FR-004 names it explicitly alongside
+  `EmbeddingStep` -- Milestone 1's Simulated Mode never required its own
+  marker on `RetrievalStep`, but FR-004's Real Mode wording doesn't leave
+  that reuse implicit, so this check no longer either.
 - **New rule**: fail if the real-mode-rendered output is missing either
   (a) an element with `data-real-disclosure="true"` and non-empty text
-  content naming the provider (FR-004, FR-006), or (b) `RealModeToggle`'s
-  key-entry prompt is missing an element with `data-key-disclaimer="true"`
-  whose text content includes both the where-it's-sent statement and the
+  content naming the provider, present on **each** of `EmbeddingStep`,
+  `RetrievalStep` (naming the projection method too), and `GenerationStep`
+  independently (FR-004, FR-006), or (b) `RealModeToggle`'s key-entry
+  prompt is missing an element with `data-key-disclaimer="true"` whose
+  text content includes both the where-it's-sent statement and the
   "at your own risk" language (FR-003; data-model.md's disclaimer copy).
 - **Exit code**: `0` = every simulated-mode surface AND every real-mode
-  surface AND the key-entry disclaimer discloses. `1` = any is missing or
-  empty.
+  surface (including `RetrievalStep`) AND the key-entry disclaimer
+  discloses. `1` = any is missing or empty.
 - **Supports**: FR-003, FR-004, FR-006, Constitution Principle II (the inverse
   direction: real output must not be presented ambiguously either).
 
@@ -44,9 +59,13 @@ is needed.
 - **Rule**: fail if any control in FR-015's enumeration (Real Mode
   toggle, API key input, temperature slider, RAG-Fusion N slider, HyDE
   hypothesis-count slider, custom-document textarea, custom-question
-  input) fails any of 001's existing FR-011 rules (a)-(e) -- Tab
-  reachability, visible focus indicator, Enter/Space/Arrow activation,
-  non-generic accessible name, disabled-control Tab removal.
+  input, and -- `/speckit.analyze` finding C1, 2026-08-06, previously
+  missing from both FR-015 and this check -- the evaluation feature's
+  `EvalPair` question input, expected-chunk picker, pair-removal
+  control, and evaluation Run control) fails any of 001's existing
+  FR-011 rules (a)-(e) -- Tab reachability, visible focus indicator,
+  Enter/Space/Arrow activation, non-generic accessible name,
+  disabled-control Tab removal.
 - **New rule** (checklist follow-up 2026-08-06, FR-015's dynamic-content
   extension): submit a key that fails `ProviderConfig.keyFormatPattern`
   and assert the resulting error element is programmatically associated
@@ -90,12 +109,16 @@ is needed.
 
 ## `check:real-mode-behavior` -- `tests/real-mode/*.spec.ts` (Playwright, mocked provider)
 
-Three spec files, one per SC, run together via `npm run
-check:real-mode` (`playwright test tests/real-mode/`):
+Four spec files, run together via `npm run check:real-mode`
+(`playwright test tests/real-mode/`):
 
-- **`failure-fallback.spec.ts`**: for each of embeddings-call,
-  generation-call, and a HyDE/RAG-Fusion intermediate call, mock a
-  401/429/network-error response and assert (a) the specific
+- **`failure-fallback.spec.ts`**: mocks a 401/429/network-error response
+  individually for **each of FR-016's 7 canonical call types**
+  (corpus-embed, query-embed, hypothesis-embed, variant-embed,
+  hypothesis-generate, variant-query-generate, final-generate --
+  `/speckit.analyze` finding E1, 2026-08-06: previously this spec only
+  named 3 broad buckets, which didn't verifiably close SC-004's "100%"
+  bar) and asserts, per call type, (a) the specific
   `RealModeError.kind`-matching message appears, and (b) the fallback-
   to-Simulated-Mode control is present and works. Additionally
   (checklist follow-up 2026-08-06, FR-007's retry-resume semantics): for
@@ -103,10 +126,18 @@ check:real-mode` (`playwright test tests/real-mode/`):
   passing response for Retry and assert (c) exactly one new request is
   captured (the failed call re-issued) and (d) the trace's
   already-succeeded first two calls' results are unchanged in the UI,
-  not re-fetched. **Exit**: `0` = all failure paths produce a specific
-  error + working fallback (SC-004 fully satisfied, no path silently
-  substitutes simulated output while implying it's real) AND retry
-  resumes rather than restarts. `1` = any path missing any of the above.
+  not re-fetched. Additionally (`/speckit.analyze` finding N5, 2026-08-06
+  -- FR-011's partial-failure handling, added by finding C3, previously
+  had no automated regression coverage): with at least 3 `EvalPair`s and
+  a mocked failure on the second pair's retrieval, assert (e) the eval
+  run stops there, (f) the first pair's `RecallResult` stays visible,
+  and (g) Retry issues exactly one new request. **Exit**: `0` = all 7
+  call types individually produce a specific error + working fallback
+  (SC-004 fully satisfied against FR-016's actual enumerated list, no
+  path silently substitutes simulated output while implying it's real),
+  variant-sequence retry resumes rather than restarts, AND eval-run
+  retry resumes only the failed pair. `1` = any call type or any retry
+  assertion fails.
 - **`temperature-effect.spec.ts`**: mock two high-temperature completions
   for the same prompt that differ, and two low-temperature completions
   for the same prompt that are identical; assert the UI reflects both.
@@ -117,8 +148,20 @@ check:real-mode` (`playwright test tests/real-mode/`):
   differs and (b) the number of captured requests matches the `N + 3`
   formula (data-model.md/research.md) for each N. **Exit**: `0` = both
   hold (SC-008 fully satisfied). `1` = either doesn't.
+- **`intermediate-steps-visible.spec.ts`** (new, `/speckit.analyze`
+  finding E2, 2026-08-06 -- SC-005 previously had no automated check at
+  all, only a manual quickstart.md scenario): for one mocked HyDE run
+  (M >= 2) and one mocked RAG-Fusion run (N >= 2), assert every
+  intermediate DOM element named in `VariantExecutionTrace` (each
+  hypothesis text + embedding indicator; each query variant + its own
+  per-variant ranking) is present and visible **before** the final
+  fused/averaged result renders, matching FR-016's canonical call-type
+  list exactly. **Exit**: `0` = 100% of both variants' intermediate
+  execution steps are visible during the run (SC-005 fully satisfied).
+  `1` = any intermediate step is missing or only the final result is
+  present.
 
-**Supports**: SC-004, SC-007, SC-008.
+**Supports**: SC-004, SC-005, SC-007, SC-008.
 
 ## Manual verification (not automated, not CI)
 

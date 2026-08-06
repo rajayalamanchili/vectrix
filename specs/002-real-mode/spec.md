@@ -5,10 +5,16 @@
 **Created**: 2026-08-03
 
 **Status**: Draft -- clarified 2026-08-05, `plan.md` drafted 2026-08-05,
-checklist follow-up 2026-08-06 closed the remaining gaps in
-`checklists/requirements.md` (27/27 complete). `plan.md` predates this
-follow-up's FR-007/FR-009/FR-011/FR-015/SC-003/User-Story-3 changes and
-needs a re-sync pass before `/speckit.tasks` runs.
+checklist follow-up 2026-08-06 closed `checklists/requirements.md`
+(27/27 complete), `plan.md`/`data-model.md`/`research.md`/both
+`contracts/*.md`/`quickstart.md` re-synced 2026-08-06, `tasks.md`
+generated the same day (59 tasks across 6 user stories), and three
+`/speckit.analyze` passes (2026-08-06) found and closed fifteen total
+findings (four HIGH/CRITICAL from the first pass; eleven MEDIUM/LOW
+across the second and third, mostly documentation self-consistency
+introduced by the prior round's own fixes) across every artifact. No
+known open gaps remain as of this writing; a further confirming pass is
+optional rather than required before `/speckit.implement`.
 
 **Input**: User description: "Opt-in Real Mode for the RAG concept module:
 bring-your-own API key for real embeddings and generation, real document
@@ -128,6 +134,31 @@ top of the existing Simulated Mode without replacing it"
   programmatically associated with the control it describes (or
   announced via a live region for banners not tied to a single
   control), not conveyed by visual styling alone.
+
+### Session 2026-08-06 (analyze follow-up)
+
+- Q: `/speckit.analyze` flagged that FR-015's control enumeration omits
+  User Story 6's evaluation controls (question input, expected-chunk
+  picker, Run control), leaving them with no stated keyboard/accessible-
+  name bar or check coverage, unlike every other story's controls --
+  should FR-015 be extended to name them? → A: Yes -- Constitution
+  Principle VII applies to every module's controls regardless of FR-015's
+  enumeration, so the enumeration should say so explicitly rather than
+  leave it implicit.
+- Q: `/speckit.analyze` flagged that spec.md's Edge Cases addresses
+  HyDE/RAG-Fusion mid-sequence partial failure explicitly, but FR-011's
+  evaluation run -- itself a multi-call sequence across up to 10 pairs
+  and multiple configurations -- has no stated behavior for one
+  `EvalPair`'s retrieval call failing partway through. Should this be
+  addressed the same way? → A: Yes -- fail closed at the failed
+  (pair, configuration) combination, exactly as FR-007/FR-008 already do
+  for HyDE/RAG-Fusion: stop issuing further eval calls, keep whatever
+  `RecallResult`s already completed successfully visible (not discarded),
+  surface a specific error naming which pair/configuration failed, and
+  offer a retry that resumes only that one combination rather than
+  re-running pairs that already scored -- the same resume-not-restart
+  principle FR-007 established, applied consistently rather than
+  reinvented for evaluation.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -400,6 +431,14 @@ and see a simple recall@K number for each, side by side.
   SC-003's 60-second budget for the first single-call embedding chart,
   scaled per-call rather than per-sequence since HyDE/RAG-Fusion
   sequences have no fixed total call count.)
+- What happens if one `EvalPair`'s retrieval call fails partway through
+  a multi-pair, multi-configuration evaluation run (FR-011)? (Must fail
+  closed at that exact (pair, configuration) combination -- stop issuing
+  further eval calls, keep every already-completed `RecallResult`
+  visible rather than discarding the partial run, surface a specific
+  error naming which pair/configuration failed, and offer a retry that
+  resumes only that combination, mirroring FR-007's resume-not-restart
+  retry semantics for HyDE/RAG-Fusion rather than a separate rule.)
 
 ## Requirements *(mandatory)*
 
@@ -511,7 +550,14 @@ and see a simple recall@K number for each, side by side.
   the full run (every `EvalPair` against every configuration tested),
   using "call" as defined in FR-016 -- the same pre-execution disclosure
   FR-010 requires for HyDE/RAG-Fusion, not a scope limited to variant
-  execution alone.
+  execution alone. If one `EvalPair`'s retrieval call fails partway
+  through a run, the system MUST fail closed at that exact
+  (pair, configuration) combination -- stopping further eval calls,
+  retaining every already-completed `RecallResult` rather than
+  discarding the partial run, surfacing a specific error naming the
+  failed combination, and offering a retry that resumes only that
+  combination (mirroring FR-007's resume-not-restart semantics, not a
+  separate rule for evaluation).
 - **FR-012**: The Generation step, when Real Mode is active, MUST expose
   a learner-adjustable temperature control ranging 0.0-1.0 in steps of
   0.1, default 0.3, that is passed through to the real model call.
@@ -526,13 +572,15 @@ and see a simple recall@K number for each, side by side.
   result.
 - **FR-015**: Every new Real Mode control (the Real Mode toggle, the API
   key input, the temperature control, RAG-Fusion's N control, HyDE's
-  hypothetical-answer-count control, and the custom document/question
-  input) MUST be operable via keyboard alone and MUST have an accessible
-  name that describes its specific effect, matching the standard set by
-  spec.md 001's FR-011 rather than introducing a lower bar for
-  Real-Mode-only controls. This extends to the dynamic content those
-  controls produce: the key-format-validation error (FR-003) MUST be
-  programmatically associated with the key input it describes, and
+  hypothetical-answer-count control, the custom document/question input,
+  and the evaluation feature's controls -- the `EvalPair` question input,
+  its expected-chunk picker, the pair-removal control, and the evaluation
+  Run control) MUST be operable via keyboard alone and MUST have an
+  accessible name that describes its specific effect, matching the
+  standard set by spec.md 001's FR-011 rather than introducing a lower
+  bar for Real-Mode-only controls. This extends to the dynamic content
+  those controls produce: the key-format-validation error (FR-003) MUST
+  be programmatically associated with the key input it describes, and
   FR-007's failure banners MUST be announced via a live region, so an
   assistive-technology user is not only aware of these errors visually.
 - **FR-016**: "A call," for FR-010's estimate and SC-004/SC-005/SC-008's

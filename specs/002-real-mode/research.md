@@ -7,14 +7,26 @@ provider choice to this plan. This document resolves that, plus the
 other genuinely undecided technical questions the spec surfaces:
 projection method, key storage, provider abstraction shape, call-count
 estimation, multi-hypothesis/multi-variant retrieval mechanics, and the
-testing approach for the four new/extended Success Criteria (SC-004,
-SC-006, SC-007, SC-008, SC-009). A `checklists/requirements.md`
+testing approach for the five new/extended Success Criteria (SC-004,
+SC-005, SC-006, SC-007, SC-008, SC-009). A `checklists/requirements.md`
 follow-up (2026-08-06, 27/27 items closed) added two further technical
 decisions this document now also records -- retry semantics for a
 partial multi-call failure (FR-007) and the UI treatment for
 non-executable variants (FR-009) -- and extended the call-count and
 testing-approach decisions below to cover FR-011's evaluation-run
-disclosure and FR-007's retry-resume behavior respectively.
+disclosure and FR-007's retry-resume behavior respectively. A same-day
+`/speckit.analyze` pass then found four further gaps (C1: FR-015 omitted
+US6's evaluation controls; F1: FR-004's Retrieval-step disclosure was
+never implemented; E1: SC-004's failure tests didn't individually cover
+FR-016's 7 canonical call types; E2: SC-005 had no automated check at
+all) -- all four are folded into the relevant decisions below. A second
+same-day `/speckit.analyze` pass found three more (C2: the temperature
+control's required near-zero-temperature disclaimer copy wasn't
+referenced by any task; C3: no partial-failure behavior was defined for
+a multi-pair evaluation run; L1: FR-016's `eval-retrieve` call type was
+never referenced by name in a task) -- C3 gets its own new Decision
+below since it establishes a real semantics choice, not just a task-text
+fix.
 
 ## Decision: Provider abstraction is provider-agnostic; OpenAI is the one default config, not a hardcoded choice
 
@@ -369,7 +381,37 @@ results") -- no design freedom needed beyond confirming which retrieval
 path (real, not simulated) and which K (the shared pipeline Top-K, per
 clarification) it uses.
 
-## Decision: Testing approach for SC-004, SC-006, SC-007, SC-008, SC-009
+## Decision: Eval runs reuse `RealModeError`'s existing partial-failure mechanism, not a new one (FR-011, `/speckit.analyze` finding C3, 2026-08-06)
+
+**Decision**: An evaluation run is itself a sequence of
+`(EvalPair, configuration)` retrieval calls. If one fails, `EvalPanel.tsx`
+fails closed exactly like `VariantsComparison.tsx` already does for
+HyDE/RAG-Fusion: stop issuing further eval calls, keep every
+already-completed `RecallResult` visible (not discarded), surface a
+`RealModeError` with `kind: "partial-failure"` and `stage` set to
+`"eval:{evalPairId}:{configurationId}"`, and let Retry resume only that
+one combination. No new error kind, no new UI component, no new retry
+mechanism -- `ErrorBanner.tsx`'s existing `stage`-driven Retry action
+(built for HyDE/RAG-Fusion) already generalizes to this shape.
+
+**Rationale**: FR-007 already established resume-not-restart retry
+semantics for exactly this class of problem (a mid-sequence failure in a
+multi-call operation), and an eval run is structurally the same class of
+problem at a different granularity (pairs x configurations instead of
+hypotheses/query-variants). Reusing the mechanism keeps the codebase
+from growing two parallel partial-failure implementations for what is,
+from `ErrorBanner`'s point of view, an identical shape: "one thing in a
+sequence failed, keep what succeeded, retry only the failed one."
+
+**Alternatives considered**: A dedicated `EvalError` type / separate
+retry UI for evaluation -- rejected as needless duplication of FR-007's
+already-generalized mechanism, for no behavioral benefit spec.md asks
+for. Restarting the whole eval run on any single-pair failure --
+rejected for the same reason a full HyDE/RAG-Fusion restart was
+rejected (FR-007's own decision, above): it silently re-spends the
+learner's API budget on pairs that already scored successfully.
+
+## Decision: Testing approach for SC-004, SC-005, SC-006, SC-007, SC-008, SC-009
 
 **Decision**: Extend Milestone 1's four-script/spec pattern rather than
 introducing a new framework, splitting each new/changed SC the same way
@@ -383,7 +425,27 @@ introducing a new framework, splitting each new/changed SC the same way
   2026-08-06): for a mid-sequence HyDE/RAG-Fusion failure, also assert
   Retry issues exactly one new request (the failed call) and the
   already-succeeded earlier calls' results stay visible unchanged, not
-  re-fetched -- proving resume, not restart.
+  re-fetched -- proving resume, not restart. Further extended
+  (`/speckit.analyze` finding E1, 2026-08-06): the mocked failure cases
+  now enumerate each of FR-016's 7 canonical call types individually
+  (corpus-embed, query-embed, hypothesis-embed, variant-embed,
+  hypothesis-generate, variant-query-generate, final-generate) rather
+  than 3 broad buckets, since "100%... scoped to FR-016's canonical
+  call-type list" isn't verifiably true of a test that never
+  distinguishes, say, `hypothesis-embed` failing from
+  `hypothesis-generate` failing.
+- **SC-005** (100% of HyDE/RAG-Fusion intermediate execution steps
+  visible) -- `tests/real-mode/intermediate-steps-visible.spec.ts`
+  (new, `/speckit.analyze` finding E2, 2026-08-06). This SC previously
+  had no automated check at all -- it was implicitly assumed true by
+  T038/T039's implementation and only checked once, manually, via
+  quickstart.md. That's the same class of gap Milestone 1's own history
+  (roadmap.md) treats as a Definition-of-Done blocker, not an
+  acceptable long-term state, so it gets the same mocked-HTTP-layer
+  treatment as its four SC-004/006/007/008 siblings: for a mocked HyDE
+  run (M >= 2) and a mocked RAG-Fusion run (N >= 2), assert every
+  intermediate element (each hypothesis, each query variant + its own
+  ranking) is present in the DOM before the final result renders.
 - **SC-006** (no API key leaves the browser) -- two halves, per
   001's precedent of pairing a cheap static check with a real
   browser-driven one:
@@ -416,7 +478,12 @@ introducing a new framework, splitting each new/changed SC the same way
   `aria-describedby`-associated with the key input, and that a
   triggered `ErrorBanner` carries `role="alert"`/`aria-live` -- FR-015's
   bar now covers dynamic content, not only the enumerated control
-  widgets.
+  widgets. Extended again (`/speckit.analyze` finding C1, 2026-08-06):
+  also covers US6's evaluation controls (the `EvalPair` question input,
+  expected-chunk picker, pair-removal control, and evaluation Run
+  control), which FR-015's enumeration and this spec had both omitted
+  -- every other story's controls already had a11y coverage, so leaving
+  US6's out was an inconsistency, not a deliberate scope boundary.
 
 All of the above mock the provider's HTTP responses -- deterministic,
 free, CI-safe, no real API key needed. One real end-to-end run against

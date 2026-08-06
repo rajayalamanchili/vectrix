@@ -75,9 +75,9 @@ generalizes, but is not a second value shipped here.
 
 | Field | Type | Notes |
 |---|---|---|
-| `kind` | `"invalid-key" \| "network" \| "rate-limit" \| "partial-failure" \| "other"` | Drives which specific message + whether a retry vs. fallback-only action is offered (FR-007, SC-004). `"partial-failure"` is RAG-Fusion/HyDE-specific -- a mid-sequence call failure (spec.md Edge Cases). |
+| `kind` | `"invalid-key" \| "network" \| "rate-limit" \| "partial-failure" \| "other"` | Drives which specific message + whether a retry vs. fallback-only action is offered (FR-007, SC-004). `"partial-failure"` covers any mid-sequence call failure (spec.md Edge Cases) -- originally RAG-Fusion/HyDE-specific, extended to also cover an eval run's `(pair, configuration)` sequence (FR-011, `/speckit.analyze` finding C3, 2026-08-06; see "Partial-failure handling" under `RecallResult` below). |
 | `message` | `string` | Plain-language, specific -- never a raw provider error string verbatim (FR-007 requires "clear, specific," not "whatever the API returned"). |
-| `stage` | `string` | Which step/call failed (e.g. `"embed-corpus"`, `"generate-hypothesis-2"`), used by `tests/real-mode/failure-fallback.spec.ts` to assert the right banner appears for the right failure, and by Retry (below) to know exactly which call to re-issue. |
+| `stage` | `string` | Which step/call or (pair, configuration) combination failed (e.g. `"embed-corpus"`, `"generate-hypothesis-2"` for a variant sequence; `"eval:{evalPairId}:{configurationId}"` for an eval run), used by `tests/real-mode/failure-fallback.spec.ts` to assert the right banner appears for the right failure, and by Retry (below) to know exactly which call to re-issue. |
 
 **Retry resumes at `stage`, it never restarts the sequence** (FR-007,
 checklist follow-up 2026-08-06): `ErrorBanner.tsx`'s Retry action re-runs
@@ -192,6 +192,19 @@ being removed from the DOM.
 | `scorePerPair` | `{ evalPairId: string; hit: boolean }[]` | Per-pair detail, so the UI can show which specific pairs the configuration missed, not just an aggregate. |
 | `recallAtK` | `number` | `[0, 1]`, `scorePerPair.filter(hit).length / scorePerPair.length`. |
 
+**Partial-failure handling** (FR-011, `/speckit.analyze` finding C3,
+2026-08-06): an eval run is itself a sequence of (pair, configuration)
+retrieval calls. If one fails, `EvalPanel.tsx` fails closed exactly like
+`VariantsComparison.tsx` already does for HyDE/RAG-Fusion (FR-007/FR-008)
+-- stop issuing further eval calls, keep whichever `RecallResult`s
+already completed visible in the side-by-side display (not discarded),
+surface a `RealModeError` naming the failed (pair, configuration), and
+let Retry resume only that one combination rather than re-scoring pairs
+that already succeeded. No new error kind is needed: this reuses
+`RealModeError`'s existing `"partial-failure"` kind and `stage` field,
+now also covering an eval `(evalPairId, configurationId)` combination
+alongside HyDE/RAG-Fusion's per-call `stage` values.
+
 ## Eval call-count estimate (FR-011, checklist follow-up 2026-08-06)
 
 Not a stored field -- a value `callEstimate.ts` computes and
@@ -236,7 +249,7 @@ lingers once a learner has moved back to a sample document.
 |---|---|---|
 | `DocumentStep` props **(existing, spec.md 001)** | `realMode?: RealModeSession` | Optional, defaults to inactive -- renders `CustomDocumentInput` only when `realMode?.active` is true. |
 | `EmbeddingStep` props | `realMode?: RealModeSession` | When active, calls `RealModeProvider.embedBatch()` instead of `mockEmbedding.embed()`, and PCA instead of the fixed `PROJECTION` matrix; renders a `data-real-disclosure="true"` marker (mirroring `data-simulated-disclosure`, FR-004) instead of the simulated-mode caption. |
-| `RetrievalStep` props | `realMode?: RealModeSession` | Same real-vs-mock branch for the query embedding; cosine similarity scoring itself is unchanged (already provider-agnostic over `number[]` vectors). |
+| `RetrievalStep` props | `realMode?: RealModeSession` | Same real-vs-mock branch for the query embedding; cosine similarity scoring itself is unchanged (already provider-agnostic over `number[]` vectors). Renders its own `data-real-disclosure="true"` marker, naming provider + projection method, mirroring `EmbeddingStep` (`/speckit.analyze` finding F1, 2026-08-06): FR-004 names both the Embedding *and* Retrieval steps as required to disclose, and unlike Milestone 1's Simulated Mode (where only `EmbeddingStep` carries `data-simulated-disclosure` and `RetrievalStep` relies on the learner having just seen it one step earlier), FR-004's Real Mode wording doesn't leave that reuse implicit. |
 | `GenerationStep` props | `realMode?: RealModeSession`, `params?: GenerationParams` | When active, calls `RealModeProvider.generate()` with `params.temperature` instead of `mockGenerate()`; renders `data-real-disclosure="true"` with "Real answer via OpenAI" instead of the simulated caption (FR-006). |
 
 ## State ownership summary

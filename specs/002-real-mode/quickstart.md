@@ -99,7 +99,14 @@ introduced and must be fixed before continuing.
     2026-08-06), run the evaluation, confirm a recall@K score (with
     method named in the UI) appears per configuration, side by side, and
     confirm changing the pipeline's Top-K changes the recall@K score
-    shown (FR-011).
+    shown (FR-011). With at least three pairs defined, force one pair's
+    retrieval call to fail mid-run (e.g. a temporarily invalid key
+    swapped in partway through): confirm the run stops there (fail
+    closed), the `RecallResult`s for pairs that already scored stay
+    visible, the error names the specific failed pair/configuration, and
+    pressing Retry re-scores only that one combination rather than
+    re-running the pairs that already succeeded (FR-011 Edge Case,
+    `/speckit.analyze` finding C3, 2026-08-06).
 
 ## Automated checks (mocked provider, no key needed)
 

@@ -41,7 +41,22 @@ keyboard/accessible-name bar extends to dynamic content (the key-format
 error and FR-007's failure banners), SC-003's 60-second budget now
 starts at key submission rather than toggle activation, and User Story 3
 gained a reverse-direction scenario (reverting to a sample document
-clears the custom one). See `research.md` for the technical decisions
+clears the custom one). A same-day `/speckit.analyze` pass then found
+four further gaps, now folded in throughout this plan: FR-015's control
+enumeration omitted US6's evaluation controls (finding C1), FR-004's
+Retrieval-step disclosure requirement wasn't implemented anywhere
+(finding F1), SC-004's failure-path tests didn't individually cover
+FR-016's 7 canonical call types (finding E1), and SC-005 had no
+automated check at all (finding E2). A second same-day `/speckit.analyze`
+pass found three further gaps: the temperature control's task didn't
+mention spec.md's required near-zero-temperature disclaimer copy
+(finding C2), spec.md had no partial-failure behavior defined for a
+multi-pair evaluation run even though HyDE/RAG-Fusion already had one
+(finding C3 -- resolved by extending FR-011 and `RealModeError`'s
+existing `"partial-failure"`/`stage` fields to also cover an eval run's
+`(pair, configuration)` sequence, not a new mechanism), and FR-016's
+`eval-retrieve` call type was never referenced by name in any task
+(finding L1). See `research.md` for the technical decisions
 this plan itself resolves (provider choice, projection method, key
 storage, call-count formulas, HyDE/RAG-Fusion retrieval mechanics, and
 the testing approach for the new/extended Success Criteria).
@@ -68,10 +83,16 @@ refresh -- see research.md's key-storage decision (supports SC-006).
 
 **Testing**: Extends Milestone 1's four-check pattern rather than
 replacing it: `check:disclosure` gains a real-mode-disclosure rule
-(FR-004), a new `check:key-isolation` (static + Playwright network-
-capture halves, SC-006), a new `check:real-mode` (three mocked-provider
-Playwright specs, SC-004/SC-007/SC-008), and `check:a11y` gains a third
-spec file for Real Mode's new controls (SC-009, FR-015).
+covering both `EmbeddingStep` and `RetrievalStep` per FR-004
+(`/speckit.analyze` finding F1, 2026-08-06), a new `check:key-isolation`
+(static + Playwright network-capture halves, SC-006), a new
+`check:real-mode` (four mocked-provider Playwright specs --
+`/speckit.analyze` finding E2, 2026-08-06 added
+`intermediate-steps-visible.spec.ts` so SC-005 gets automated coverage
+alongside SC-004/SC-007/SC-008, not just a manual scenario), and
+`check:a11y` gains a third spec file for Real Mode's new controls,
+including US6's evaluation controls (SC-009, FR-015, `/speckit.analyze`
+finding C1, 2026-08-06).
 `check:extensibility` and `check:determinism` need no new rules (see
 research.md's scope note). All automated specs mock the provider's HTTP
 responses via Playwright route interception -- deterministic, free,
@@ -116,7 +137,14 @@ retry, not be discarded); FR-009 (GraphRAG/Self-RAG/Agentic RAG show a
 disabled Run control with an inline explanation in Real Mode, not a
 hidden or unchanged one); FR-011 (an evaluation run shows its own
 pre-execution call-count estimate, reusing FR-010's formula and FR-016's
-call definition).
+call definition, and fails closed at the failed `(pair, configuration)`
+combination on a mid-run failure, with retry resuming only that
+combination -- `/speckit.analyze` finding C3, 2026-08-06, reusing
+`RealModeError`'s existing `"partial-failure"` mechanism rather than a
+new one); FR-012 (the temperature control's near-zero-temperature
+disclaimer -- "very consistent," not "guaranteed identical" -- is a
+required part of the control, not optional copy -- `/speckit.analyze`
+finding C2, 2026-08-06).
 
 **Scale/Scope**: One `ProviderConfig` shipped, wired in, and end-to-end
 tested (OpenAI, see research.md), behind a provider-agnostic
@@ -135,12 +163,12 @@ accounts, no cross-session persistence -- unchanged from Milestone 1.
 | Principle | Status | Notes |
 |---|---|---|
 | I. Extensibility Is Structural | PASS | All new code lives inside `src/concepts/rag/` (a new `realMode/` subfolder plus edits to existing RAG-only files); no core file (`page.tsx`, dynamic route, `concept-registry.ts`, `concept-types.ts`) is touched. `check:extensibility`'s existing regression gate (SC-001, 002-spec) needs no new rule and continues passing. |
-| II. Never Blur Simulated vs Real | PASS | FR-004/FR-006 require visible real-mode disclosure mirroring (not removing) Simulated Mode's -- `check:disclosure` is extended, not replaced, to assert both a `data-simulated-disclosure` marker (Simulated Mode) and a `data-real-disclosure` marker (Real Mode) are present with content. |
+| II. Never Blur Simulated vs Real | PASS | FR-004/FR-006 require visible real-mode disclosure mirroring (not removing) Simulated Mode's -- `check:disclosure` is extended, not replaced, to assert a `data-real-disclosure` marker is present with content on `EmbeddingStep`, `RetrievalStep` (`/speckit.analyze` finding F1, 2026-08-06 -- FR-004 names both steps explicitly, so both get their own marker rather than `RetrievalStep` relying on `EmbeddingStep`'s), and `GenerationStep`. |
 | III. Every Interaction Teaches Something | PASS | Every new control maps to a named spec.md FR/SC: temperature -> FR-012/SC-007 (sampling stochasticity), RAG-Fusion N -> FR-013/SC-008 (query-phrasing robustness), HyDE hypothesis count -> FR-014 (hypothesis agreement/disagreement). No control added without a stated teaching point. |
 | IV. Guided, Not Just Dense | PASS | Real Mode controls live inside the existing stepped/Marginalia layout (Pipeline Walkthrough) and the existing card-based layout (Compare Variants) -- no new unguided settings panel. |
 | V. Deterministic By Default | PASS | Simulated Mode's pipeline is untouched. Real Mode's own local computations (PCA projection, cosine ranking, recall@K scoring) are pure functions of their inputs, deterministic by construction given fixed embedding vectors -- but the live API response itself isn't guaranteed byte-identical run-to-run, which spec.md 002's Edge Cases already correctly acknowledge for temperature. Principle V governs *simulated* behavior specifically; Real Mode is by definition not simulated, so this is a documented scope boundary (research.md), not a violation. |
 | VI. Spec Before Code | PASS | spec.md 002 is drafted and clarified (2026-08-05, five ambiguities resolved) before this plan; a `checklists/requirements.md` follow-up (2026-08-06, 27/27 items closed) resolved six further gaps, and this plan was re-synced against them the same day rather than left stale. |
-| VII. Accessible and Reduced-Motion by Default | PASS | FR-015/SC-009 (added during `/speckit.clarify`) require every new Real Mode control to match Milestone 1's FR-011 keyboard/accessible-name bar, extended by the 2026-08-06 checklist follow-up to dynamic content (key-format error, failure banners). `tests/a11y/real-mode.spec.ts` (this plan's deliverable) verifies it, not a gap left open. |
+| VII. Accessible and Reduced-Motion by Default | PASS | FR-015/SC-009 (added during `/speckit.clarify`) require every new Real Mode control to match Milestone 1's FR-011 keyboard/accessible-name bar, extended by the 2026-08-06 checklist follow-up to dynamic content (key-format error, failure banners) and by the same day's `/speckit.analyze` finding C1 to explicitly name US6's evaluation controls, which FR-015's enumeration had omitted. `tests/a11y/real-mode.spec.ts` (this plan's deliverable) now covers all of it, not a gap left open. |
 
 **Technology Constraints gate** (tech-stack.md): This plan adds a "Real
 Mode AI behavior" table (a provider-agnostic `ProviderConfig` +
@@ -197,12 +225,12 @@ src/concepts/rag/
 │       ├── DocumentStep.tsx               # + CustomDocumentInput when real mode active (edit)
 │       ├── ChunkingStep.tsx                # unchanged -- chunking itself stays local/pure in both modes
 │       ├── EmbeddingStep.tsx              # + real embedBatch()+PCA path, data-real-disclosure marker (edit)
-│       ├── RetrievalStep.tsx              # + real query-embedding path (edit)
-│       └── GenerationStep.tsx             # + real generate() call, temperature control, data-real-disclosure marker (edit)
+│       ├── RetrievalStep.tsx              # + real query-embedding path, own data-real-disclosure marker per FR-004 (edit; `/speckit.analyze` finding F1, 2026-08-06 -- not reused from EmbeddingStep)
+│       └── GenerationStep.tsx             # + real generate() call, temperature control (with the required near-zero-temperature disclaimer copy -- `/speckit.analyze` finding C2, 2026-08-06), data-real-disclosure marker (edit)
 └── variants/
     ├── variantData.ts                     # unchanged
     ├── VariantsComparison.tsx             # + independent doc/query state, Run-for-real per executable variant, trace display (edit, largest change); GraphRAG/Self-RAG/Agentic RAG render a disabled Run button with inline "Explanatory only this milestone" text (FR-009)
-    └── EvalPanel.tsx                      # (new) US6 -- EvalPair authoring + recall@K display, reuses VariantsComparison's doc/query state; shows callEstimate.ts's eval-run total before Run is enabled (FR-011)
+    └── EvalPanel.tsx                      # (new) US6 -- EvalPair authoring + recall@K display, reuses VariantsComparison's doc/query state; shows callEstimate.ts's eval-run total before Run is enabled (FR-011); fails closed at the failed (pair, configuration) combination on a mid-run failure, with ErrorBanner's retry-resume action re-running only that combination (FR-011, `/speckit.analyze` finding C3, 2026-08-06); its question input, expected-chunk picker, pair-removal, and Run controls are covered by tests/a11y/real-mode.spec.ts (FR-015, `/speckit.analyze` finding C1, 2026-08-06)
 
 scripts/checks/
 ├── no-cross-module-conditionals.ts        # unchanged (SC-001, 002-spec, regression)
@@ -217,9 +245,10 @@ tests/a11y/
 
 tests/real-mode/                            # (new)
 ├── key-isolation.spec.ts                  # dynamic half of SC-006 -- network-capture, mocked provider
-├── failure-fallback.spec.ts               # SC-004 -- each failure path -> error + fallback, mocked; a mid-sequence HyDE/RAG-Fusion failure's Retry (FR-007) is asserted to re-issue only the failed call, not the completed ones
+├── failure-fallback.spec.ts               # SC-004 -- each of FR-016's 7 canonical call types individually mocked to fail (corpus-embed, query-embed, hypothesis-embed, variant-embed, hypothesis-generate, variant-query-generate, final-generate; `/speckit.analyze` finding E1, 2026-08-06 -- not just 3 broad buckets) -> error + fallback; a mid-sequence HyDE/RAG-Fusion failure's Retry (FR-007) is asserted to re-issue only the failed call, not the completed ones; plus one eval-pair-failure case (`/speckit.analyze` finding N5, 2026-08-06) asserting an eval run's Retry re-scores only the failed (pair, configuration), not the ones that already succeeded
 ├── temperature-effect.spec.ts             # SC-007 -- mocked high/low-temperature responses differ/stable
-└── fusion-n-effect.spec.ts                # SC-008 -- mocked N-variant responses, call count matches N+3
+├── fusion-n-effect.spec.ts                # SC-008 -- mocked N-variant responses, call count matches N+3
+└── intermediate-steps-visible.spec.ts     # (new) SC-005 -- for a mocked HyDE and a mocked RAG-Fusion run, asserts every intermediate DOM element (each hypothesis; each query variant + its own ranking) is present before the final ranking renders (`/speckit.analyze` finding E2, 2026-08-06 -- SC-005 previously had no automated check, only a manual quickstart.md scenario)
 ```
 
 **Structure Decision**: No structural change to the existing single
