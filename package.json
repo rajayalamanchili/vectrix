@@ -10,6 +10,7 @@
     "check:extensibility": "tsx scripts/checks/no-cross-module-conditionals.ts",
     "check:disclosure": "tsx scripts/checks/simulated-disclosure.ts",
     "check:determinism": "tsx scripts/checks/determinism.ts",
+    "check:key-isolation": "tsx scripts/checks/key-isolation.ts",
     "check:a11y": "playwright test tests/a11y/",
     "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y"
   },

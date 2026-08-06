@@ -30,8 +30,8 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 **Purpose**: Confirm the baseline before any Real Mode change lands.
 
-- [ ] T001 Run `npm run build` and `npm run dev` on branch `002-real-mode` to confirm Milestone 1's build/dev server are unaffected before Real Mode work begins
-- [ ] T002 [P] Create the `src/concepts/rag/realMode/` directory as the home for all new Real Mode-only modules
+- [X] T001 Run `npm run build` and `npm run dev` on branch `002-real-mode` to confirm Milestone 1's build/dev server are unaffected before Real Mode work begins
+- [X] T002 [P] Create the `src/concepts/rag/realMode/` directory as the home for all new Real Mode-only modules
 
 **Checkpoint**: Baseline confirmed clean; scaffold ready.
 
@@ -43,14 +43,14 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Define all Real Mode types in `src/concepts/rag/realMode/types.ts` (`RealModeSession`, `ProviderConfig`, `RealModeError`, `RealEmbeddingResult`, `VariantExecutionTrace`, `EvalPair`, `RecallResult`, `GenerationParams`) per data-model.md
-- [ ] T004 [P] Create the one shipped `ProviderConfig` value (OpenAI: `text-embedding-3-small` / `gpt-4o-mini`, `keyFormatPattern: /^sk-/`) in `src/concepts/rag/realMode/providerConfigs.ts` per contracts/real-mode-provider-contract.md
-- [ ] T005 [P] Implement `RealModeProvider` (`embedBatch()`, `generate()`) in `src/concepts/rag/realMode/openaiCompatibleProvider.ts` per contracts/real-mode-provider-contract.md, including the `RealModeError.kind` mapping (401→`invalid-key`, 429→`rate-limit`, `fetch` throw→`network`, other non-2xx→`other`) and a 30-second per-call timeout (spec.md Edge Cases)
-- [ ] T006 [P] Implement the hand-rolled 2-component PCA projection (fixed start vector, fixed iteration count) in `src/concepts/rag/realMode/pca.ts` per research.md
-- [ ] T007 [P] Implement call-count formulas in `src/concepts/rag/realMode/callEstimate.ts`: naive=3, HyDE=`M + 3`, RAG-Fusion=`N + 3`, and the evaluation-run total `evalPairs.length * configurationsTested.length * callsPerConfiguration(configurationId)` per FR-010/FR-011/FR-013/FR-016
-- [ ] T008 Lift `RealModeSession` and `GenerationParams` state into `src/concepts/rag/RagConcept.tsx`, defaulting to inactive/default values so every downstream prop threading defaults to Simulated Mode (FR-001, SC-002)
-- [ ] T009 [P] Implement shared `ErrorBanner.tsx` in `src/concepts/rag/realMode/ErrorBanner.tsx`: FR-007's error message + fallback-to-Simulated-Mode action, `role="alert"`/`aria-live` announcement (FR-015), and a Retry action that re-issues only the call named by `RealModeError.stage` (resume, not restart)
-- [ ] T010 [P] Implement the static half of SC-006 in `scripts/checks/key-isolation.ts` (fails if any Next.js server-route file exists) and wire a `check:key-isolation` npm script in `package.json`
+- [X] T003 Define all Real Mode types in `src/concepts/rag/realMode/types.ts` (`RealModeSession`, `ProviderConfig`, `RealModeError`, `RealEmbeddingResult`, `VariantExecutionTrace`, `EvalPair`, `RecallResult`, `GenerationParams`) per data-model.md
+- [X] T004 [P] Create the one shipped `ProviderConfig` value (OpenAI: `text-embedding-3-small` / `gpt-4o-mini`, `keyFormatPattern: /^sk-/`) in `src/concepts/rag/realMode/providerConfigs.ts` per contracts/real-mode-provider-contract.md
+- [X] T005 [P] Implement `RealModeProvider` (`embedBatch()`, `generate()`) in `src/concepts/rag/realMode/openaiCompatibleProvider.ts` per contracts/real-mode-provider-contract.md, including the `RealModeError.kind` mapping (401→`invalid-key`, 429→`rate-limit`, `fetch` throw→`network`, other non-2xx→`other`) and a 30-second per-call timeout (spec.md Edge Cases)
+- [X] T006 [P] Implement the hand-rolled 2-component PCA projection (fixed start vector, fixed iteration count) in `src/concepts/rag/realMode/pca.ts` per research.md
+- [X] T007 [P] Implement call-count formulas in `src/concepts/rag/realMode/callEstimate.ts`: naive=3, HyDE=`M + 3`, RAG-Fusion=`N + 3`, and the evaluation-run total `evalPairs.length * configurationsTested.length * callsPerConfiguration(configurationId)` per FR-010/FR-011/FR-013/FR-016
+- [X] T008 Lift `RealModeSession` and `GenerationParams` state into `src/concepts/rag/RagConcept.tsx`, defaulting to inactive/default values so every downstream prop threading defaults to Simulated Mode (FR-001, SC-002)
+- [X] T009 [P] Implement shared `ErrorBanner.tsx` in `src/concepts/rag/realMode/ErrorBanner.tsx`: FR-007's error message + fallback-to-Simulated-Mode action, `role="alert"`/`aria-live` announcement (FR-015), and a Retry action that re-issues only the call named by `RealModeError.stage` (resume, not restart)
+- [X] T010 [P] Implement the static half of SC-006 in `scripts/checks/key-isolation.ts` (fails if any Next.js server-route file exists) and wire a `check:key-isolation` npm script in `package.json`
 
 **Checkpoint**: Foundational infrastructure ready -- user story implementation can now begin.
 
