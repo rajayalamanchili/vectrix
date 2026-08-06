@@ -21,12 +21,16 @@ const STEPS = [
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
-export function PipelineWalkthrough({ realMode }: { realMode?: RealModeSession }) {
-  // Accepted here (T013) so the prop is already threaded to this view;
-  // individual steps start reading it as each is given a real-execution
-  // path (EmbeddingStep/RetrievalStep in US2, DocumentStep in US3,
-  // GenerationStep in US4).
-  void realMode;
+export function PipelineWalkthrough({
+  realMode,
+  onRealModeChange,
+}: {
+  realMode?: RealModeSession;
+  onRealModeChange?: (next: RealModeSession) => void;
+}) {
+  // EmbeddingStep/RetrievalStep read realMode starting in US2; DocumentStep
+  // (US3) and GenerationStep (US4) start reading it as each is given its
+  // own real-execution path.
   const [stepIndex, setStepIndex] = useState(0);
   const [docId, setDocId] = useState("coffee");
   const [chunkSize, setChunkSize] = useState(60);
@@ -113,6 +117,8 @@ export function PipelineWalkthrough({ realMode }: { realMode?: RealModeSession }
             chunkSize={chunkSize}
             overlap={overlap}
             chunkingStrategy={chunkingStrategy}
+            realMode={realMode}
+            onRealModeChange={onRealModeChange}
           />
         )}
         {stepIndex === 3 && (
@@ -131,6 +137,8 @@ export function PipelineWalkthrough({ realMode }: { realMode?: RealModeSession }
               setResults(r);
               goTo(4);
             }}
+            realMode={realMode}
+            onRealModeChange={onRealModeChange}
           />
         )}
         {stepIndex === 4 && <GenerationStep query={query} results={results} />}

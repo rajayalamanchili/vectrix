@@ -59,7 +59,9 @@ export function RagConcept() {
 
       <RealModeToggle realMode={realMode} onRealModeChange={setRealMode} />
 
-      {tab === "pipeline" && <PipelineWalkthrough realMode={realMode} />}
+      {tab === "pipeline" && (
+        <PipelineWalkthrough realMode={realMode} onRealModeChange={setRealMode} />
+      )}
       {tab === "variants" && <VariantsComparison realMode={realMode} />}
     </div>
   );
