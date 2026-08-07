@@ -20,6 +20,11 @@
  * explicitly, so RetrievalStep doesn't get to rely on EmbeddingStep's
  * marker the way Simulated Mode's own disclosure never required one on
  * RetrievalStep at all.
+ *
+ * Extended again (FR-006, US4) with the same `data-real-disclosure="true"`
+ * rule for GenerationStep: rendered with an active Real Mode session, it
+ * must carry a marker naming the provider, mirroring the label MUST-be
+ * "labeled as real" requirement in FR-006.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -156,6 +161,18 @@ const failures: CheckFailure[] = [
       }),
     ),
     [/OpenAI/i, /PCA/i],
+  ),
+  ...checkRealDisclosure(
+    "GenerationStep.tsx (Real Mode)",
+    renderToStaticMarkup(
+      createElement(GenerationStep, {
+        query: "test query",
+        results: [],
+        realMode: ACTIVE_REAL_MODE_FIXTURE,
+        onRealModeChange: () => {},
+      }),
+    ),
+    [/OpenAI/i],
   ),
 ];
 

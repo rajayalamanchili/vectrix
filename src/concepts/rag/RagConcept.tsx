@@ -33,11 +33,10 @@ export function RagConcept() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("pipeline");
   const [realMode, setRealMode] = useState<RealModeSession>(INACTIVE_REAL_MODE_SESSION);
   const [generationParams, setGenerationParams] = useState<GenerationParams>(DEFAULT_GENERATION_PARAMS);
-  // generationParams/setGenerationParams are lifted here (T008) but not
-  // yet threaded to children -- that wiring lands alongside the controls
-  // that actually read them (temperature in US4, N/hydeCount in US5).
-  void generationParams;
-  void setGenerationParams;
+  // generationParams/setGenerationParams are lifted here (T008); the
+  // temperature control threads them to GenerationStep starting in US4.
+  // VariantsComparison's HyDE/RAG-Fusion N/hydeCount controls (US5) will
+  // read the same state.
 
   return (
     <div>
@@ -60,7 +59,12 @@ export function RagConcept() {
       <RealModeToggle realMode={realMode} onRealModeChange={setRealMode} />
 
       {tab === "pipeline" && (
-        <PipelineWalkthrough realMode={realMode} onRealModeChange={setRealMode} />
+        <PipelineWalkthrough
+          realMode={realMode}
+          onRealModeChange={setRealMode}
+          generationParams={generationParams}
+          onGenerationParamsChange={setGenerationParams}
+        />
       )}
       {tab === "variants" && <VariantsComparison realMode={realMode} />}
     </div>

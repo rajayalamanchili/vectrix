@@ -1,7 +1,17 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Panel, Marginalia } from "@/components/ui/Panel";
+import { Slider } from "@/components/ui/Slider";
+import { ErrorBanner } from "../../realMode/ErrorBanner";
+import { createOpenAICompatibleProvider } from "../../realMode/openaiCompatibleProvider";
+import type { GenerationParams, RealModeError, RealModeSession } from "../../realMode/types";
 import type { RetrievedChunk } from "./RetrievalStep";
+
+/** FR-016 canonical call type for this step's one real call. */
+const STAGE = "final-generate";
+
+const DEFAULT_TEMPERATURE = 0.3;
 
 /**
  * Placeholder "generation" -- deliberately not a real LLM call, so the
@@ -27,9 +37,17 @@ function mockGenerate(query: string, chunks: RetrievedChunk[]): string {
 export function GenerationStep({
   query,
   results,
+  realMode,
+  onRealModeChange,
+  params,
+  onParamsChange,
 }: {
   query: string;
   results: RetrievedChunk[];
+  realMode?: RealModeSession;
+  onRealModeChange?: (next: RealModeSession) => void;
+  params?: GenerationParams;
+  onParamsChange?: (next: GenerationParams) => void;
 }) {
   const contextBlock = results.map((r, i) => `[${i + 1}] ${r.chunk.text}`).join("\n\n");
   const prompt = `You are a helpful assistant. Answer the question using ONLY the context below. If the context doesn't contain the answer, say so.
@@ -39,7 +57,79 @@ ${contextBlock || "(no context retrieved)"}
 
 Question: ${query || "(no query yet)"}`;
 
-  const answer = mockGenerate(query, results);
+  const temperature = params?.temperature ?? DEFAULT_TEMPERATURE;
+  const isReal = Boolean(realMode?.active && realMode.apiKey);
+
+  const [realAnswer, setRealAnswer] = useState<string | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+
+  // Only this step's own call type -- an embedding failure surfaced
+  // elsewhere must not make this step show a stale banner.
+  const stageError = realMode?.error?.stage === STAGE ? realMode.error : null;
+  // Derived, not a separate boolean: "in flight" is exactly "real mode is
+  // on, we don't have an answer yet, and the last attempt didn't error."
+  const loading = isReal && realAnswer === null && !stageError;
+
+  useEffect(() => {
+    if (!isReal || !realMode || !realMode.apiKey) {
+      return;
+    }
+    let cancelled = false;
+    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    provider
+      .generate(prompt, { temperature })
+      .then((text) => {
+        if (cancelled) return;
+        setRealAnswer(text);
+        if (realMode.error?.stage === STAGE) {
+          onRealModeChange?.({ ...realMode, error: null });
+        }
+      })
+      .catch((err: RealModeError) => {
+        if (cancelled) return;
+        setRealAnswer(null);
+        onRealModeChange?.({ ...realMode, error: { ...err, stage: STAGE } });
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isReal, prompt, temperature, retryToken]);
+
+  const answer = isReal ? realAnswer : mockGenerate(query, results);
+
+  // A failed real call must never fall back to showing the simulated
+  // answer while the caption still claims "real" -- the same FR-007
+  // guarantee EmbeddingStep/RetrievalStep already make.
+  const showUnavailable = isReal && realAnswer === null && Boolean(stageError);
+
+  function handleFallback() {
+    if (!realMode) return;
+    onRealModeChange?.({ ...realMode, active: false, error: null });
+  }
+
+  function handleRetry() {
+    if (realMode) onRealModeChange?.({ ...realMode, error: null });
+    setRetryToken((t) => t + 1);
+  }
+
+  // Manually forces a fresh call at the current temperature, distinct
+  // from Retry's error-recovery path -- SC-007 requires re-running
+  // generation at a fixed temperature to directly observe whether the
+  // output stays stable or varies, which changing the slider itself
+  // can't demonstrate for two runs at the *same* value.
+  function handleRegenerate() {
+    setRealAnswer(null);
+    setRetryToken((t) => t + 1);
+  }
+
+  function handleTemperatureChange(v: number) {
+    onParamsChange?.({
+      temperature: v,
+      fusionN: params?.fusionN ?? 3,
+      hydeCount: params?.hydeCount ?? 1,
+    });
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
@@ -48,20 +138,80 @@ Question: ${query || "(no query yet)"}`;
           <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-doc-teal">
             Assembled prompt sent to the model
           </div>
-          <pre className="max-h-[260px] overflow-y-auto whitespace-pre-wrap rounded bg-chart-bg p-3 font-mono text-[11px] leading-relaxed text-ink-300">
+          <pre
+            tabIndex={0}
+            className="max-h-[260px] overflow-y-auto whitespace-pre-wrap rounded bg-chart-bg p-3 font-mono text-[11px] leading-relaxed text-ink-300"
+          >
             {prompt}
           </pre>
         </Panel>
 
+        {isReal && (
+          <Panel className="p-5">
+            <Slider
+              label="Temperature"
+              value={temperature}
+              min={0}
+              max={1}
+              step={0.1}
+              onChange={handleTemperatureChange}
+              tone="query"
+            />
+            <p className="mt-2 text-xs text-ink-500">
+              Higher values let the model&apos;s wording vary more across
+              repeated runs of the same prompt; lower values keep it more
+              consistent. Even at the lowest setting, the response is{" "}
+              <em>very consistent, not guaranteed identical</em> -- providers
+              aren&apos;t perfectly deterministic even at temperature 0.
+            </p>
+          </Panel>
+        )}
+
         <Panel className="p-5 border-query-amber/30">
           <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
-            Simulated answer
+            {isReal ? "Real answer" : "Simulated answer"}
           </div>
-          <p className="text-sm leading-relaxed text-ink-100">{answer}</p>
-          <p className="mt-3 text-xs text-ink-700 italic" data-simulated-disclosure="true">
-            Simulated, not a real model call -- see the code comment in
-            GenerationStep.tsx for the one-function swap to a real API.
-          </p>
+          {loading ? (
+            <p role="status" className="text-xs italic text-ink-500">
+              Generating via {realMode?.provider.label}...
+            </p>
+          ) : showUnavailable ? (
+            <p role="status" className="text-xs italic text-ink-500">
+              No real answer available -- see the error below.
+            </p>
+          ) : (
+            <p className="text-sm leading-relaxed text-ink-100" data-generated-answer="true">
+              {answer}
+            </p>
+          )}
+          {isReal ? (
+            <p className="mt-3 text-xs text-ink-500 italic" data-real-disclosure="true">
+              Real answer via {realMode?.provider.label} ({realMode?.provider.chatModel}) -- this is
+              the model&apos;s actual response to the prompt above, not a simulation.
+            </p>
+          ) : (
+            <p className="mt-3 text-xs text-ink-500 italic" data-simulated-disclosure="true">
+              Simulated, not a real model call -- see the code comment in
+              GenerationStep.tsx for the one-function swap to a real API.
+            </p>
+          )}
+          {isReal && !loading && !showUnavailable && !stageError && (
+            <button
+              onClick={handleRegenerate}
+              className="mt-3 rounded border border-chart-line px-3 py-1.5 text-xs font-medium text-ink-300 hover:text-ink-100 transition-colors"
+            >
+              Regenerate at this temperature
+            </button>
+          )}
+          {stageError && (
+            <div className="mt-3">
+              <ErrorBanner
+                error={stageError}
+                onRetry={handleRetry}
+                onFallbackToSimulated={handleFallback}
+              />
+            </div>
+          )}
         </Panel>
       </div>
 

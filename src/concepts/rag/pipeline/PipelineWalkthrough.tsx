@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { StepperNav } from "@/components/ui/StepperNav";
 import type { ChunkingStrategy, SampleDoc } from "../lib/sampleDocs";
-import type { RealModeSession } from "../realMode/types";
+import type { GenerationParams, RealModeSession } from "../realMode/types";
 import { DocumentStep } from "./steps/DocumentStep";
 import { ChunkingStep } from "./steps/ChunkingStep";
 import { EmbeddingStep } from "./steps/EmbeddingStep";
@@ -24,12 +24,16 @@ const FOCUSABLE_SELECTOR =
 export function PipelineWalkthrough({
   realMode,
   onRealModeChange,
+  generationParams,
+  onGenerationParamsChange,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
+  generationParams?: GenerationParams;
+  onGenerationParamsChange?: (next: GenerationParams) => void;
 }) {
   // EmbeddingStep/RetrievalStep read realMode starting in US2; GenerationStep
-  // (US4) starts reading it as it's given its own real-execution path.
+  // (US4) reads both realMode and generationParams for its own real-execution path.
   const [stepIndex, setStepIndex] = useState(0);
   const [docId, setDocId] = useState("coffee");
   const [chunkSize, setChunkSize] = useState(60);
@@ -203,7 +207,16 @@ export function PipelineWalkthrough({
             customDoc={customDoc}
           />
         )}
-        {stepIndex === 4 && <GenerationStep query={query} results={results} />}
+        {stepIndex === 4 && (
+          <GenerationStep
+            query={query}
+            results={results}
+            realMode={realMode}
+            onRealModeChange={onRealModeChange}
+            params={generationParams}
+            onParamsChange={onGenerationParamsChange}
+          />
+        )}
       </div>
 
       <div className="flex justify-between pt-2">
