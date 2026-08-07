@@ -7,11 +7,17 @@ import { Badge } from "@/components/ui/Badge";
 import { Slider } from "@/components/ui/Slider";
 import { FlowDiagram } from "@/components/charts/FlowDiagram";
 import { sampleDocs, chunkText, type SampleDoc } from "../lib/sampleDocs";
-import { cosineSimilarity } from "../lib/mockEmbedding";
 import { ErrorBanner } from "../realMode/ErrorBanner";
 import { CustomDocumentInput } from "../realMode/CustomDocumentInput";
+import { EvalPanel } from "./EvalPanel";
 import { createOpenAICompatibleProvider } from "../realMode/openaiCompatibleProvider";
-import { averageVectors, reciprocalRankFusion } from "../realMode/variantExecution";
+import {
+  averageVectors,
+  reciprocalRankFusion,
+  rankChunks,
+  buildHypothesisPrompt,
+  buildQueryVariantPrompt,
+} from "../realMode/variantExecution";
 import { hydeCallCount, fusionCallCount, naiveCallCount } from "../realMode/callEstimate";
 import type { RetrievedChunk } from "../pipeline/steps/RetrievalStep";
 import type { ConfigurationId, GenerationParams, RealModeError, RealModeSession } from "../realMode/types";
@@ -35,30 +41,6 @@ Context:
 ${contextBlock || "(no context retrieved)"}
 
 Question: ${query || "(no query yet)"}`;
-}
-
-function buildHypothesisPrompt(query: string): string {
-  return `Write a plausible, concise hypothetical answer (2-4 sentences) to the following question, even if you are not certain it is correct. Do not hedge or say you don't know -- just write your best guess, as if it came from the source document.
-
-Question: ${query}`;
-}
-
-function buildQueryVariantPrompt(query: string, n: number): string {
-  return `Rewrite the following question into ${n} different phrasings that preserve its meaning but vary the wording. Return exactly ${n} lines, one phrasing per line, with no numbering, bullets, or extra commentary.
-
-Question: ${query}`;
-}
-
-function rankChunks(
-  chunks: { id: string; text: string }[],
-  vectors: number[][],
-  queryVector: number[],
-  topK: number,
-): RetrievedChunk[] {
-  return chunks
-    .map((c, i) => ({ chunk: c as RetrievedChunk["chunk"], score: cosineSimilarity(vectors[i], queryVector) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
 }
 
 type RunStatus = "idle" | "running" | "error" | "done";
@@ -128,11 +110,16 @@ export function VariantsComparison({
   onRealModeChange,
   generationParams,
   onGenerationParamsChange,
+  topK,
+  onTopKChange,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
   generationParams?: GenerationParams;
   onGenerationParamsChange?: (next: GenerationParams) => void;
+  /** Lifted to RagConcept.tsx (US6/FR-011) -- EvalPanel's recall@K reuses this same value, not a separate eval-only K. */
+  topK: number;
+  onTopKChange: (k: number) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
@@ -767,6 +754,23 @@ export function VariantsComparison({
               );
             })()}
           </Panel>
+        )}
+
+        {isReal && (
+          <EvalPanel
+            // Remounts (clean state reset) whenever the active document
+            // changes -- an EvalPair's expectedChunkId is only meaningful
+            // against the chunk list it was defined for (FR-011), the same
+            // class of invalidation resetAllRunStates() already applies to
+            // naive/hyde/fusion state on a document switch.
+            key={`${docId}-${customMode}`}
+            chunks={chunks}
+            topK={topK}
+            onTopKChange={onTopKChange}
+            realMode={realMode}
+            onRealModeChange={onRealModeChange}
+            generationParams={generationParams}
+          />
         )}
       </div>
 

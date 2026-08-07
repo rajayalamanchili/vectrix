@@ -296,3 +296,79 @@ test.describe("Compare Variants real-execution accessibility (US5)", () => {
     }
   });
 });
+
+/**
+ * SC-009 + FR-015: User Story 6's evaluation controls (`EvalPanel.tsx`) --
+ * the `EvalPair` question input, expected-chunk picker, pair-removal
+ * control, and evaluation Run control (`/speckit.analyze` finding C1,
+ * 2026-08-06: previously the only story with zero accessibility-check
+ * coverage, and a Constitution Principle VII gap).
+ */
+test.describe("Evaluation panel accessibility (US6)", () => {
+  const TEST_KEY = "sk-test-fixture-key-1234567890";
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/concepts/rag");
+    await page.getByRole("button", { name: "Compare Variants" }).click();
+    await page.getByRole("switch", { name: "Real Mode" }).click();
+    await page.getByLabel("OpenAI API key").fill(TEST_KEY);
+    await page.getByRole("button", { name: "Activate Real Mode" }).click();
+  });
+
+  test("has no automatically detectable WCAG 2.1 A/AA violations with an evaluation pair defined", async ({ page }) => {
+    await page.getByLabel("Evaluation question").fill("What grind size for French press?");
+    await page.getByLabel("Expected chunk").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Add pair" }).click();
+
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+
+  test("evaluation question input and expected-chunk picker are Tab-reachable with purpose-specific accessible names", async ({
+    page,
+  }) => {
+    const questionInput = page.getByLabel("Evaluation question");
+    await expect(questionInput).toBeVisible();
+    await expect(questionInput).not.toHaveAccessibleName("Input");
+    await questionInput.focus();
+    await expect(questionInput).toBeFocused();
+
+    const chunkPicker = page.getByLabel("Expected chunk");
+    await expect(chunkPicker).toBeVisible();
+    await expect(chunkPicker).not.toHaveAccessibleName("Select");
+    await chunkPicker.focus();
+    await expect(chunkPicker).toBeFocused();
+  });
+
+  test("pair-removal control is keyboard-operable with an accessible name naming the specific pair", async ({ page }) => {
+    await page.getByLabel("Evaluation question").fill("What grind size for French press?");
+    await page.getByLabel("Expected chunk").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Add pair" }).click();
+
+    const removeButton = page.getByRole("button", {
+      name: "Remove evaluation pair: What grind size for French press?",
+    });
+    await expect(removeButton).toBeVisible();
+
+    await removeButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("What grind size for French press?")).toHaveCount(0);
+  });
+
+  test("evaluation Run control is disabled (removed from the Tab order) with zero pairs, and becomes enabled and keyboard-focusable once a pair is defined", async ({
+    page,
+  }) => {
+    const runButton = page.getByRole("button", { name: "Run evaluation" });
+    await expect(runButton).toBeDisabled();
+    await expect(page.getByText(/Add at least one .* pair to run an evaluation/i)).toBeVisible();
+
+    await page.getByLabel("Evaluation question").fill("What grind size for French press?");
+    await page.getByLabel("Expected chunk").selectOption({ index: 1 });
+    await page.getByRole("button", { name: "Add pair" }).click();
+
+    await expect(runButton).toBeEnabled();
+    await expect(runButton).not.toHaveAccessibleName("Button");
+    await runButton.focus();
+    await expect(runButton).toBeFocused();
+  });
+});

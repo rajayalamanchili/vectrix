@@ -26,11 +26,16 @@ export function PipelineWalkthrough({
   onRealModeChange,
   generationParams,
   onGenerationParamsChange,
+  topK,
+  onTopKChange,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
   generationParams?: GenerationParams;
   onGenerationParamsChange?: (next: GenerationParams) => void;
+  /** Lifted to RagConcept.tsx (US6/FR-011) so EvalPanel's recall@K scoring reuses this exact value. */
+  topK: number;
+  onTopKChange: (k: number) => void;
 }) {
   // EmbeddingStep/RetrievalStep read realMode starting in US2; GenerationStep
   // (US4) reads both realMode and generationParams for its own real-execution path.
@@ -40,7 +45,6 @@ export function PipelineWalkthrough({
   const [overlap, setOverlap] = useState(15);
   const [chunkingStrategy, setChunkingStrategy] = useState<ChunkingStrategy>("fixed");
   const [query, setQuery] = useState("");
-  const [topK, setTopK] = useState(3);
   const [similarityThreshold, setSimilarityThreshold] = useState(0);
   const [results, setResults] = useState<RetrievedChunk[]>([]);
 
@@ -195,7 +199,7 @@ export function PipelineWalkthrough({
             query={query}
             onQuery={setQuery}
             topK={topK}
-            onTopK={setTopK}
+            onTopK={onTopKChange}
             similarityThreshold={similarityThreshold}
             onSimilarityThreshold={setSimilarityThreshold}
             onResults={(r) => {

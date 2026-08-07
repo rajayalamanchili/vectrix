@@ -38,6 +38,13 @@ export function RagConcept() {
   // VariantsComparison's HyDE/RAG-Fusion N/hydeCount controls (US5) will
   // read the same state.
 
+  // topK is lifted here (US6/FR-011, per the 2026-08-05 /speckit.clarify
+  // resolution: recall@K reuses the pipeline's existing Top-K slider
+  // rather than a separate eval-only parameter) so EvalPanel.tsx's
+  // recall@K scoring reads and can adjust the exact same value the
+  // Retrieval step's own slider controls.
+  const [topK, setTopK] = useState(3);
+
   return (
     <div>
       <div className="mb-6 flex gap-1 border-b border-chart-line">
@@ -64,6 +71,8 @@ export function RagConcept() {
           onRealModeChange={setRealMode}
           generationParams={generationParams}
           onGenerationParamsChange={setGenerationParams}
+          topK={topK}
+          onTopKChange={setTopK}
         />
       )}
       {tab === "variants" && (
@@ -72,6 +81,8 @@ export function RagConcept() {
           onRealModeChange={setRealMode}
           generationParams={generationParams}
           onGenerationParamsChange={setGenerationParams}
+          topK={topK}
+          onTopKChange={setTopK}
         />
       )}
     </div>

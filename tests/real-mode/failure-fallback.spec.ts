@@ -414,3 +414,59 @@ test.describe("Real Mode failure -> fallback (HyDE/RAG-Fusion intermediate calls
     expect(variantEmbedCalls).toBe(4); // variant1(1) + variant2 failed(2) + variant2 retried(3) + variant3(4)
   });
 });
+
+/**
+ * US6 (EvalPanel's recall@K evaluation): FR-011's partial-failure handling
+ * reuses `RealModeError`'s existing `"partial-failure"` mechanism, the same
+ * shape as the HyDE/RAG-Fusion tests above -- `/speckit.analyze` finding N5,
+ * 2026-08-06, closing the one call type (`eval-retrieve`) that previously
+ * had no automated regression coverage.
+ */
+test.describe("Real Mode failure -> fallback (evaluation partial failure)", () => {
+  test("eval-retrieve: fails on the 2nd of 3 pairs, retry re-scores only that pair and the first pair's result stays visible", async ({
+    page,
+  }) => {
+    // Naive is the first configuration EvalPanel scores, so its corpus-embed
+    // (a batched, multi-text call) plus one query-embed (single-text) per
+    // pair is what's under test here -- HyDE/RAG-Fusion are never reached
+    // since the run fails closed before advancing past naive.
+    let queryEmbedCalls = 0;
+    await page.route("https://api.openai.com/v1/embeddings", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const texts: string[] = Array.isArray(body.input) ? body.input : [body.input];
+      if (texts.length === 1) {
+        queryEmbedCalls += 1;
+        if (queryEmbedCalls === 2) {
+          return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: {} }) });
+        }
+      }
+      return route.fulfill(succeedEmbeddingsOf(texts.length));
+    });
+
+    await activateRealModeOnVariants(page);
+
+    const questionInput = page.getByLabel("Evaluation question");
+    const chunkPicker = page.getByLabel("Expected chunk");
+    for (let i = 1; i <= 3; i++) {
+      await questionInput.fill(`Eval question ${i}?`);
+      await chunkPicker.selectOption({ index: 1 });
+      await page.getByRole("button", { name: "Add pair" }).click();
+    }
+
+    await page.getByRole("button", { name: "Run evaluation" }).click();
+
+    // First pair's score is visible before the second pair fails.
+    await expect(page.getByText(/Scoring\.\.\. 1\/3/)).toBeVisible();
+
+    const banner = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/rejected this API key/i);
+    // First pair's partial result is still shown, not discarded by the failure.
+    await expect(page.getByText(/Scoring\.\.\. 1\/3/)).toBeVisible();
+
+    await banner.getByRole("button", { name: "Retry" }).click();
+
+    await expect(page.getByText(/3\/3 pairs scored/)).toBeVisible();
+    expect(queryEmbedCalls).toBe(4); // pair1(1) + pair2 failed(2) + pair2 retried(3) + pair3(4)
+  });
+});
