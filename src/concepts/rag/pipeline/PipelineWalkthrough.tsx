@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StepperNav } from "@/components/ui/StepperNav";
-import type { ChunkingStrategy } from "../lib/sampleDocs";
+import type { ChunkingStrategy, SampleDoc } from "../lib/sampleDocs";
 import type { RealModeSession } from "../realMode/types";
 import { DocumentStep } from "./steps/DocumentStep";
 import { ChunkingStep } from "./steps/ChunkingStep";
@@ -28,9 +28,8 @@ export function PipelineWalkthrough({
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
 }) {
-  // EmbeddingStep/RetrievalStep read realMode starting in US2; DocumentStep
-  // (US3) and GenerationStep (US4) start reading it as each is given its
-  // own real-execution path.
+  // EmbeddingStep/RetrievalStep read realMode starting in US2; GenerationStep
+  // (US4) starts reading it as it's given its own real-execution path.
   const [stepIndex, setStepIndex] = useState(0);
   const [docId, setDocId] = useState("coffee");
   const [chunkSize, setChunkSize] = useState(60);
@@ -40,6 +39,27 @@ export function PipelineWalkthrough({
   const [topK, setTopK] = useState(3);
   const [similarityThreshold, setSimilarityThreshold] = useState(0);
   const [results, setResults] = useState<RetrievedChunk[]>([]);
+
+  // US3: independent CustomDocumentInput state (data-model.md), owned by
+  // this view specifically -- Compare Variants gets its own separate
+  // instance later (research.md's independent-state decision), not this
+  // one shared across tabs.
+  const [customMode, setCustomMode] = useState<"sample" | "custom">("sample");
+  const [customText, setCustomText] = useState("");
+  const [customQuestion, setCustomQuestion] = useState("");
+
+  const customDoc: SampleDoc | null = useMemo(
+    () =>
+      customMode === "custom"
+        ? {
+            id: "custom",
+            title: "Custom document",
+            text: customText,
+            sampleQueries: customQuestion ? [customQuestion] : [],
+          }
+        : null,
+    [customMode, customText, customQuestion],
+  );
 
   const stepContentRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
@@ -55,6 +75,30 @@ export function PipelineWalkthrough({
   // handler, rather than reacting after the fact in an effect.
   function handleDocSelect(id: string) {
     setDocId(id);
+    setQuery("");
+    setResults([]);
+    setStepIndex(0);
+  }
+
+  // Switching to a custom document is the same class of invalidation as
+  // switching sample documents (handleDocSelect above): downstream
+  // query/results must not survive a document swap (US3 Acceptance
+  // Scenario 1; spec.md 001 Edge Cases' existing precedent).
+  function handleUseCustomDocument() {
+    setCustomMode("custom");
+    setQuery("");
+    setResults([]);
+    setStepIndex(0);
+  }
+
+  // Symmetric counterpart (US3 Acceptance Scenario 3): reverting clears
+  // the custom text/question entirely -- docId itself was never touched
+  // while custom mode was active, so the previously-selected sample
+  // document's own question set is restored for free.
+  function handleRevertToSample() {
+    setCustomMode("sample");
+    setCustomText("");
+    setCustomQuestion("");
     setQuery("");
     setResults([]);
     setStepIndex(0);
@@ -99,7 +143,22 @@ export function PipelineWalkthrough({
       <StepperNav steps={STEPS} activeIndex={stepIndex} onSelect={goTo} />
 
       <div ref={stepContentRef} tabIndex={-1}>
-        {stepIndex === 0 && <DocumentStep docId={docId} onSelect={handleDocSelect} />}
+        {stepIndex === 0 && (
+          <DocumentStep
+            docId={docId}
+            onSelect={handleDocSelect}
+            realMode={realMode}
+            customDocument={{
+              mode: customMode,
+              customText,
+              customQuestion,
+              onCustomTextChange: setCustomText,
+              onCustomQuestionChange: setCustomQuestion,
+              onUseCustom: handleUseCustomDocument,
+              onRevertToSample: handleRevertToSample,
+            }}
+          />
+        )}
         {stepIndex === 1 && (
           <ChunkingStep
             docId={docId}
@@ -109,6 +168,7 @@ export function PipelineWalkthrough({
             onChunkSize={setChunkSize}
             onOverlap={setOverlap}
             onChunkingStrategy={handleChunkingStrategy}
+            customDoc={customDoc}
           />
         )}
         {stepIndex === 2 && (
@@ -119,6 +179,7 @@ export function PipelineWalkthrough({
             chunkingStrategy={chunkingStrategy}
             realMode={realMode}
             onRealModeChange={onRealModeChange}
+            customDoc={customDoc}
           />
         )}
         {stepIndex === 3 && (
@@ -139,6 +200,7 @@ export function PipelineWalkthrough({
             }}
             realMode={realMode}
             onRealModeChange={onRealModeChange}
+            customDoc={customDoc}
           />
         )}
         {stepIndex === 4 && <GenerationStep query={query} results={results} />}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy } from "../../lib/sampleDocs";
+import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy, type SampleDoc } from "../../lib/sampleDocs";
 import { embed } from "../../lib/mockEmbedding";
 import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
@@ -20,6 +20,7 @@ export function EmbeddingStep({
   chunkingStrategy,
   realMode,
   onRealModeChange,
+  customDoc,
 }: {
   docId: string;
   chunkSize: number;
@@ -27,8 +28,10 @@ export function EmbeddingStep({
   chunkingStrategy: ChunkingStrategy;
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
+  /** US3: when non-null, the learner's pasted document replaces the sample lookup by `docId` entirely (FR-005). */
+  customDoc?: SampleDoc | null;
 }) {
-  const doc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
+  const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks = useMemo(
     () =>
       chunkingStrategy === "sentence"
@@ -80,7 +83,7 @@ export function EmbeddingStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, docId, chunkSize, overlap, chunkingStrategy, retryToken]);
+  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, retryToken]);
 
   const simulatedPoints: StarPoint[] = useMemo(
     () =>

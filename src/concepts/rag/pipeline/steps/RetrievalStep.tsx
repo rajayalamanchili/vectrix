@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { sampleDocs, chunkText, chunkTextBySentence, type Chunk, type ChunkingStrategy } from "../../lib/sampleDocs";
+import { sampleDocs, chunkText, chunkTextBySentence, type Chunk, type ChunkingStrategy, type SampleDoc } from "../../lib/sampleDocs";
 import { embed, cosineSimilarity } from "../../lib/mockEmbedding";
 import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
@@ -34,6 +34,7 @@ export function RetrievalStep({
   onResults,
   realMode,
   onRealModeChange,
+  customDoc,
 }: {
   docId: string;
   chunkSize: number;
@@ -48,8 +49,10 @@ export function RetrievalStep({
   onResults: (r: RetrievedChunk[]) => void;
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
+  /** US3: when non-null, the learner's pasted document replaces the sample lookup by `docId` entirely (FR-005). */
+  customDoc?: SampleDoc | null;
 }) {
-  const doc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
+  const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks = useMemo(
     () =>
       chunkingStrategy === "sentence"
@@ -113,7 +116,7 @@ export function RetrievalStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, docId, chunkSize, overlap, chunkingStrategy, corpusRetryToken]);
+  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, corpusRetryToken]);
 
   useEffect(() => {
     if (!isReal || !realMode || !realMode.apiKey) {
