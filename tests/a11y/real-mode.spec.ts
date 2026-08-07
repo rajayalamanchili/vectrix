@@ -222,3 +222,77 @@ test.describe("Generation temperature control accessibility (US4)", () => {
     await expect(page.getByText(/very consistent, not guaranteed identical/i)).toBeVisible();
   });
 });
+
+/**
+ * SC-009 + FR-015: User Story 5's Compare Variants real-execution
+ * controls -- the HyDE hypothesis-count slider, RAG-Fusion's N slider,
+ * and the disabled Run affordance FR-009 requires for GraphRAG/Self-RAG/
+ * Agentic RAG once Real Mode is active.
+ */
+test.describe("Compare Variants real-execution accessibility (US5)", () => {
+  const TEST_KEY = "sk-test-fixture-key-1234567890";
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/concepts/rag");
+    await page.getByRole("button", { name: "Compare Variants" }).click();
+    await page.getByRole("switch", { name: "Real Mode" }).click();
+    await page.getByLabel("OpenAI API key").fill(TEST_KEY);
+    await page.getByRole("button", { name: "Activate Real Mode" }).click();
+  });
+
+  test("has no automatically detectable WCAG 2.1 A/AA violations with the real-execution panel visible", async ({
+    page,
+  }) => {
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+
+  test("HyDE hypothesis-count slider is Tab-reachable, keyboard-operable, and has a purpose-specific accessible name", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Show real-execution panel for HyDE" }).click();
+    const slider = page.getByRole("slider", { name: "HyDE hypothesis count" });
+    await expect(slider).toBeVisible();
+    await expect(slider).not.toHaveAccessibleName("Slider");
+
+    await slider.focus();
+    await expect(slider).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(slider).toHaveValue("3");
+    await page.keyboard.press("Home");
+    await expect(slider).toHaveValue("1");
+  });
+
+  test("RAG-Fusion query-variant slider is Tab-reachable, keyboard-operable, and has a purpose-specific accessible name", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Show real-execution panel for RAG-Fusion" }).click();
+    const slider = page.getByRole("slider", { name: "RAG-Fusion query variants (N)" });
+    await expect(slider).toBeVisible();
+    await expect(slider).not.toHaveAccessibleName("Slider");
+
+    await slider.focus();
+    await expect(slider).toBeFocused();
+    await page.keyboard.press("End");
+    await expect(slider).toHaveValue("5");
+    await page.keyboard.press("Home");
+    await expect(slider).toHaveValue("2");
+  });
+
+  test("GraphRAG/Self-RAG/Agentic RAG's Run control is disabled (removed from the Tab order) with an inline explanation", async ({
+    page,
+  }) => {
+    for (const name of ["GraphRAG", "Self-RAG", "Agentic RAG"]) {
+      const card = page.locator("div.transition-colors", { has: page.getByRole("heading", { name, exact: true }) });
+      await expect(card.getByRole("button", { name: "Run for real" })).toBeDisabled();
+      await expect(card.getByText("Explanatory only this milestone")).toBeVisible();
+    }
+  });
+
+  test("Naive RAG/HyDE/RAG-Fusion's Run control stays enabled and reachable", async ({ page }) => {
+    for (const name of ["Naive RAG", "HyDE", "RAG-Fusion"]) {
+      const card = page.locator("div.transition-colors", { has: page.getByRole("heading", { name, exact: true }) });
+      await expect(card.getByRole("button", { name: "Run for real →" })).toBeEnabled();
+    }
+  });
+});

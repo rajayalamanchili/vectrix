@@ -66,7 +66,14 @@ export function RagConcept() {
           onGenerationParamsChange={setGenerationParams}
         />
       )}
-      {tab === "variants" && <VariantsComparison realMode={realMode} />}
+      {tab === "variants" && (
+        <VariantsComparison
+          realMode={realMode}
+          onRealModeChange={setRealMode}
+          generationParams={generationParams}
+          onGenerationParamsChange={setGenerationParams}
+        />
+      )}
     </div>
   );
 }

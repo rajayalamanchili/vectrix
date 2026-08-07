@@ -200,3 +200,217 @@ test.describe("Real Mode failure -> fallback (final-generate)", () => {
     await expect(page.getByText("A real, mocked answer.")).toBeVisible();
   });
 });
+
+/**
+ * US5 (Compare Variants' real HyDE/RAG-Fusion execution): the remaining
+ * four of FR-016's canonical call types, `/speckit.analyze` finding E1's
+ * "individually test each type" bar. Unlike Pipeline Walkthrough's
+ * embedding/generation calls (issued from a `useEffect` on mount, subject
+ * to Next dev's double effect-invocation -- see the `final-generate`
+ * retry test above), every call here is issued from a click handler, so
+ * plain request counting is reliable -- no settle-wait/flag workaround
+ * needed.
+ */
+
+async function activateRealModeOnVariants(page: Page) {
+  await page.goto("/concepts/rag");
+  await page.getByRole("button", { name: "Compare Variants" }).click();
+  await page.getByRole("switch", { name: "Real Mode" }).click();
+  await page.getByLabel("OpenAI API key").fill(TEST_KEY);
+  await page.getByRole("button", { name: "Activate Real Mode" }).click();
+}
+
+function succeedEmbeddingsOf(n: number) {
+  return {
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: Array.from({ length: n }, (_, i) => ({ embedding: [0.1 + i * 0.01, 0.2, 0.3] })) }),
+  } as const;
+}
+
+test.describe("Real Mode failure -> fallback (HyDE/RAG-Fusion intermediate calls)", () => {
+  test("hypothesis-generate: fails on the 2nd of 2 hypotheses, retry resumes without re-generating the 1st", async ({
+    page,
+  }) => {
+    await page.route("https://api.openai.com/v1/embeddings", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const n = Array.isArray(body.input) ? body.input.length : 1;
+      return route.fulfill(succeedEmbeddingsOf(n));
+    });
+    let hypothesisCalls = 0;
+    await page.route("https://api.openai.com/v1/chat/completions", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const content = body.messages[0].content as string;
+      if (content.includes("hypothetical answer")) {
+        hypothesisCalls += 1;
+        if (hypothesisCalls === 2) {
+          return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: {} }) });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ choices: [{ message: { content: `Hypothesis from call ${hypothesisCalls}` } }] }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ choices: [{ message: { content: "Final HyDE answer." } }] }),
+      });
+    });
+
+    await activateRealModeOnVariants(page);
+    await page.getByRole("button", { name: "Show real-execution panel for HyDE" }).click();
+    const hydeSlider = page.getByRole("slider", { name: "HyDE hypothesis count" });
+    await hydeSlider.focus();
+    await page.keyboard.press("ArrowRight"); // 1 -> 2
+    await page.getByRole("button", { name: "Run HyDE" }).click();
+
+    await expect(page.getByText("Hypothesis from call 1")).toBeVisible();
+    const banner = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/rejected this API key/i);
+    // Already-succeeded first hypothesis stays visible through the failure.
+    await expect(page.getByText("Hypothesis from call 1")).toBeVisible();
+
+    await banner.getByRole("button", { name: "Retry" }).click();
+
+    await expect(page.getByText("Hypothesis from call 3")).toBeVisible();
+    // The first hypothesis was never re-issued/re-rendered under a new call number.
+    await expect(page.getByText("Hypothesis from call 1")).toBeVisible();
+    await expect(page.getByText(/Hypothesis from call 2/)).toHaveCount(0);
+    await expect(page.locator('[data-generated-answer="true"]')).toHaveText("Final HyDE answer.");
+    expect(hypothesisCalls).toBe(3); // 1 (succeeded) + 1 (failed) + 1 (retry succeeded)
+  });
+
+  test("hypothesis-embed: fails once, retry re-issues exactly one embeddings request for it", async ({ page }) => {
+    let hypothesisEmbedShouldFail = true;
+    let hypothesisEmbedAttempts = 0;
+    await page.route("https://api.openai.com/v1/embeddings", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const texts: string[] = Array.isArray(body.input) ? body.input : [body.input];
+      if (texts.length === 1) {
+        hypothesisEmbedAttempts += 1;
+        if (hypothesisEmbedShouldFail) {
+          hypothesisEmbedShouldFail = false;
+          return route.fulfill({ status: 429, contentType: "application/json", body: JSON.stringify({ error: {} }) });
+        }
+      }
+      return route.fulfill(succeedEmbeddingsOf(texts.length));
+    });
+    await page.route("https://api.openai.com/v1/chat/completions", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const content = body.messages[0].content as string;
+      const answer = content.includes("hypothetical answer") ? "The only hypothesis." : "Final HyDE answer.";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ choices: [{ message: { content: answer } }] }),
+      });
+    });
+
+    await activateRealModeOnVariants(page);
+    await page.getByRole("button", { name: "Show real-execution panel for HyDE" }).click();
+    await page.getByRole("button", { name: "Run HyDE" }).click();
+
+    await expect(page.getByText("The only hypothesis.")).toBeVisible();
+    const banner = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/rate-limiting/i);
+
+    await banner.getByRole("button", { name: "Retry" }).click();
+
+    await expect(page.locator('[data-generated-answer="true"]')).toHaveText("Final HyDE answer.");
+    expect(hypothesisEmbedAttempts).toBe(2); // 1 failed + 1 retry-succeeded
+  });
+
+  test("variant-query-generate: fails once, retry re-issues exactly one request and the run completes", async ({
+    page,
+  }) => {
+    await page.route("https://api.openai.com/v1/embeddings", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const n = Array.isArray(body.input) ? body.input.length : 1;
+      return route.fulfill(succeedEmbeddingsOf(n));
+    });
+    let variantQueryGenerateCalls = 0;
+    await page.route("https://api.openai.com/v1/chat/completions", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const content = body.messages[0].content as string;
+      if (content.includes("different phrasings")) {
+        variantQueryGenerateCalls += 1;
+        if (variantQueryGenerateCalls === 1) {
+          return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: {} }) });
+        }
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ choices: [{ message: { content: "Phrasing A?\nPhrasing B?\nPhrasing C?" } }] }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ choices: [{ message: { content: "Final fusion answer." } }] }),
+      });
+    });
+
+    await activateRealModeOnVariants(page);
+    await page.getByRole("button", { name: "Show real-execution panel for RAG-Fusion" }).click();
+    await page.getByRole("button", { name: "Run RAG-Fusion" }).click();
+
+    const banner = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/rejected this API key/i);
+    await expect(page.getByText("Phrasing A?")).toHaveCount(0);
+
+    await banner.getByRole("button", { name: "Retry" }).click();
+
+    await expect(page.getByText("Phrasing A?")).toBeVisible();
+    await expect(page.locator('[data-generated-answer="true"]')).toHaveText("Final fusion answer.");
+    expect(variantQueryGenerateCalls).toBe(2); // 1 failed + 1 retry-succeeded
+  });
+
+  test("variant-embed: fails on the 2nd of 3 variants, retry resumes without re-embedding the 1st", async ({ page }) => {
+    let variantEmbedCalls = 0;
+    await page.route("https://api.openai.com/v1/embeddings", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const texts: string[] = Array.isArray(body.input) ? body.input : [body.input];
+      if (texts.length === 1) {
+        variantEmbedCalls += 1;
+        if (variantEmbedCalls === 2) {
+          return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: {} }) });
+        }
+      }
+      return route.fulfill(succeedEmbeddingsOf(texts.length));
+    });
+    await page.route("https://api.openai.com/v1/chat/completions", (route) => {
+      const body = JSON.parse(route.request().postData() ?? "{}");
+      const content = body.messages[0].content as string;
+      const answer = content.includes("different phrasings")
+        ? "Phrasing A?\nPhrasing B?\nPhrasing C?"
+        : "Final fusion answer.";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ choices: [{ message: { content: answer } }] }),
+      });
+    });
+
+    await activateRealModeOnVariants(page);
+    await page.getByRole("button", { name: "Show real-execution panel for RAG-Fusion" }).click();
+    await page.getByRole("button", { name: "Run RAG-Fusion" }).click();
+
+    await expect(page.getByText("Phrasing A?")).toBeVisible();
+    const banner = page.locator('[role="alert"]:not(#__next-route-announcer__)');
+    await expect(banner).toBeVisible();
+    await expect(banner).toContainText(/rejected this API key/i);
+    // Variant 1's own text (already embedded+retrieved) stays visible through the failure.
+    await expect(page.getByText("Phrasing A?")).toBeVisible();
+
+    await banner.getByRole("button", { name: "Retry" }).click();
+
+    await expect(page.locator('[data-generated-answer="true"]')).toHaveText("Final fusion answer.");
+    await expect(page.getByText("Phrasing A?")).toBeVisible();
+    expect(variantEmbedCalls).toBe(4); // variant1(1) + variant2 failed(2) + variant2 retried(3) + variant3(4)
+  });
+});

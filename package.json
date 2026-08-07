@@ -10,9 +10,10 @@
     "check:extensibility": "tsx scripts/checks/no-cross-module-conditionals.ts",
     "check:disclosure": "tsx scripts/checks/simulated-disclosure.ts",
     "check:determinism": "tsx scripts/checks/determinism.ts",
-    "check:key-isolation": "tsx scripts/checks/key-isolation.ts",
+    "check:key-isolation": "tsx scripts/checks/key-isolation.ts && playwright test tests/real-mode/key-isolation.spec.ts",
     "check:a11y": "playwright test tests/a11y/",
-    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y"
+    "check:real-mode": "playwright test tests/real-mode/",
+    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y && npm run check:key-isolation && npm run check:real-mode"
   },
   "dependencies": {
     "next": "16.2.12",
