@@ -130,9 +130,19 @@ didn't strictly happen in that order.
 
 ## Milestone 2: Real Mode for the RAG Module
 **Spec**: `specs/002-real-mode/spec.md`
-**Status**: Spec drafted, pending `/speckit.clarify` and `/speckit.plan` --
-do not begin until Milestone 1's Definition of Done gaps (the
-SC-002/003/005 automated checks) are closed.
+**Status**: `/speckit.implement` has run (2026-08-08). All 59 tasks in
+`tasks.md` are complete. `npm run check:all` (extensibility, disclosure,
+determinism, `check:a11y` 37/37, `check:key-isolation`, `check:real-mode`
+17/17) passes clean, alongside `npm run build`/`tsc`/`eslint`. The
+Milestone 1 regression pass (T056) confirmed zero behavioral difference
+with Real Mode present but never toggled on. A real end-to-end run
+against the live OpenAI API (T058-T059) confirmed Real Mode activation,
+real embedding/retrieval charts, real generation with observable
+temperature effects, and HyDE/RAG-Fusion executing for real with visible
+intermediate steps and honest non-executable-variant labeling -- this
+also retroactively closed T023/T035/T048/T055, which had been left
+blocked earlier in the implementation for lack of a real API key.
+Milestone 2's Definition of Done is met.
 
 **Scope**: An opt-in, clearly labeled "Real Mode" layered on top of the
 existing Simulated Mode, adding: real embeddings (with the projection
@@ -293,24 +303,26 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.7.0 -- 2026-08-05, **Milestone 1's Definition of Done is
-fully met -- all 57 of 57 tasks in `tasks.md` are complete.** The
-root-access gap blocking `check:a11y` and manual browser validation is
-closed (`sudo npx playwright install-deps chromium`); all four
-automated checks now pass (`npm run check:all`), and all three
-previously-blocked tasks -- T036 (US1 manual scenarios), T044 (US3
-manual scenarios), T051 (final `check:all` + full quickstart.md
-8-scenario re-run) -- are done. The first real `check:a11y` run failed
-5/14 tests -- genuine defects, not environment noise -- all now fixed:
-an axe heading-order violation and a broken FIFO-replacement flow in
-Compare Variants, a non-focusable scrollable region on the Document
-step, the chunking-strategy toggle resetting query/stepper state on
-every switch (contradicting spec.md's Edge Cases section), and a
-resulting stepper-jump focus-target bug on the Retrieval step. T051's
-final pass additionally re-confirmed SC-001 (home-page-to-result path)
-against a real browser and found no further defects.
+**Version**: 1.8.0 -- 2026-08-08, **Milestone 2's Definition of Done is
+fully met -- all 59 of 59 tasks in `specs/002-real-mode/tasks.md` are
+complete.** Phase 9's polish/regression pass closed out the milestone:
+`npm run check:all` (extensibility, disclosure, determinism,
+`check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17) and
+`npm run build`/`tsc`/`eslint` all pass clean (T057); the Milestone 1
+regression pass confirmed zero behavioral difference with Real Mode
+present but never toggled on, satisfying 002-spec's own SC-001/SC-002
+(T056); and a real end-to-end run against the live OpenAI API confirmed
+every acceptance scenario -- Real Mode activation, real embedding/
+retrieval charts, real generation with observable temperature effects,
+custom documents, and HyDE/RAG-Fusion executing for real with visible
+intermediate steps -- against the actual provider (T058-T059), which
+also retroactively closed four tasks left blocked earlier in the
+implementation for lack of a real API key (T023, T035, T048, T055).
 
-Supersedes 1.6.0 (2026-08-05, the root-access gap blocking `check:a11y`
+Supersedes 1.7.0 (2026-08-05, Milestone 1's Definition of Done fully
+met -- all 57 of 57 tasks in that feature's `tasks.md` complete after
+the root-access gap blocking `check:a11y` closed), 1.6.0 (2026-08-05,
+the root-access gap blocking `check:a11y`
 closed; all four automated checks passed via `npm run check:all`, and
 T036's manual-scenario walkthrough was done, with T044/T051 still
 open), 1.5.0 (2026-08-04, `/speckit.implement` ran: FR-013, FR-014,

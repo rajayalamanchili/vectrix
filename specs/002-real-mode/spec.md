@@ -4,17 +4,17 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- clarified 2026-08-05, `plan.md` drafted 2026-08-05,
-checklist follow-up 2026-08-06 closed `checklists/requirements.md`
-(27/27 complete), `plan.md`/`data-model.md`/`research.md`/both
-`contracts/*.md`/`quickstart.md` re-synced 2026-08-06, `tasks.md`
-generated the same day (59 tasks across 6 user stories), and three
-`/speckit.analyze` passes (2026-08-06) found and closed fifteen total
-findings (four HIGH/CRITICAL from the first pass; eleven MEDIUM/LOW
-across the second and third, mostly documentation self-consistency
-introduced by the prior round's own fixes) across every artifact. No
-known open gaps remain as of this writing; a further confirming pass is
-optional rather than required before `/speckit.implement`.
+**Status**: `/speckit.implement` has run (2026-08-08). All 59 tasks in
+`tasks.md` are complete, including Phase 9's regression/polish pass:
+`npm run check:all` (extensibility, disclosure, determinism,
+`check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17)
+plus `npm run build`/`tsc`/`eslint` all pass clean (T057); the
+Milestone 1 regression pass confirmed zero behavioral difference with
+Real Mode present but inactive (T056); and a real end-to-end run
+against the live OpenAI API (T058-T059, plus retroactively closing
+T023/T035/T048/T055's previously-blocked real-key scenarios) confirmed
+every acceptance scenario works against the actual provider, not just
+mocked coverage. Milestone 2's Definition of Done (roadmap.md) is met.
 
 **Input**: User description: "Opt-in Real Mode for the RAG concept module:
 bring-your-own API key for real embeddings and generation, real document
