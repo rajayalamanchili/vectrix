@@ -59,6 +59,19 @@ that doesn't match any shipped id sets `docNotFound` instead of
 `docId`, so the caller can render the Edge-Cases-required "this document
 no longer exists" message instead of silently defaulting.
 
+Every numeric/enum field is independently range-checked against its
+control's own valid bounds (FR-008): `chunkSize` against the slider's
+20-120 range, `similarityThreshold` against 0-1, `topK` against 1-5,
+`chunkingStrategy` against `"fixed"`/`"sentence"`, `mode` against
+`"sim"`/`"real"`, `temperature`/`fusionN`/`hydeCount` against their own
+`GenerationParams` bounds. A field outside its valid range or an
+unparseable value (e.g. non-numeric `cs`) is simply **omitted** from
+`ParsedPermalink` (left `undefined`) rather than set to a clamped or
+malformed value -- the caller's per-field `useState` setters are only
+ever called for present fields, so an omitted field naturally falls
+back to that state's own existing default, with every other valid field
+in the same link still applying normally.
+
 ## Caller contract (`PipelineWalkthrough.tsx`)
 
 - **On mount only** (not on every render/navigation): call

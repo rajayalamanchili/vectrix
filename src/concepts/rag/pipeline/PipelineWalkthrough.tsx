@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { StepperNav } from "@/components/ui/StepperNav";
 import type { ChunkingStrategy, SampleDoc } from "../lib/sampleDocs";
 import type { GenerationParams, RealModeSession } from "../realMode/types";
@@ -9,6 +10,8 @@ import { ChunkingStep } from "./steps/ChunkingStep";
 import { EmbeddingStep } from "./steps/EmbeddingStep";
 import { RetrievalStep, type RetrievedChunk } from "./steps/RetrievalStep";
 import { GenerationStep } from "./steps/GenerationStep";
+import { parsePermalinkParams } from "../permalink/permalinkParams";
+import { PermalinkButton } from "../permalink/PermalinkButton";
 
 const STEPS = [
   { label: "Document" },
@@ -37,15 +40,30 @@ export function PipelineWalkthrough({
   topK: number;
   onTopKChange: (k: number) => void;
 }) {
+  // 003-parameter-exploration US2: a permalink's parameters are read
+  // synchronously during the very first render (contracts/permalink-
+  // contract.md's "on mount only" requirement) via each field's own
+  // useState lazy initializer -- not an effect calling local setState,
+  // which `react-hooks/set-state-in-effect` correctly flags as the
+  // wrong tool for "initialize state once from an external source read
+  // during render" (React's own guidance: derive during render, don't
+  // synchronize in an effect). `initialParsed` itself is captured once
+  // via the same lazy-initializer trick, since `useSearchParams()`'s
+  // value is available on this very first render already.
+  const searchParams = useSearchParams();
+  const [initialParsed] = useState(() => parsePermalinkParams(searchParams));
+
   // EmbeddingStep/RetrievalStep read realMode starting in US2; GenerationStep
   // (US4) reads both realMode and generationParams for its own real-execution path.
   const [stepIndex, setStepIndex] = useState(0);
-  const [docId, setDocId] = useState("coffee");
-  const [chunkSize, setChunkSize] = useState(60);
-  const [overlap, setOverlap] = useState(15);
-  const [chunkingStrategy, setChunkingStrategy] = useState<ChunkingStrategy>("fixed");
-  const [query, setQuery] = useState("");
-  const [similarityThreshold, setSimilarityThreshold] = useState(0);
+  const [docId, setDocId] = useState(() => initialParsed.docId ?? "coffee");
+  const [chunkSize, setChunkSize] = useState(() => initialParsed.chunkSize ?? 60);
+  const [overlap, setOverlap] = useState(() => initialParsed.overlap ?? 15);
+  const [chunkingStrategy, setChunkingStrategy] = useState<ChunkingStrategy>(
+    () => initialParsed.chunkingStrategy ?? "fixed",
+  );
+  const [query, setQuery] = useState(() => initialParsed.query ?? "");
+  const [similarityThreshold, setSimilarityThreshold] = useState(() => initialParsed.similarityThreshold ?? 0);
   const [results, setResults] = useState<RetrievedChunk[]>([]);
 
   // US3: independent CustomDocumentInput state (data-model.md), owned by
@@ -68,6 +86,42 @@ export function PipelineWalkthrough({
         : null,
     [customMode, customText, customQuestion],
   );
+
+  // 003-parameter-exploration US2: a document named by a permalink that
+  // no longer matches any shipped sampleDocs id (Edge Cases) -- shown as
+  // a dismissible banner rather than silently substituting a document.
+  const [docNotFoundMessage, setDocNotFoundMessage] = useState<string | null>(
+    () => initialParsed.docNotFound ?? null,
+  );
+
+  // The remaining permalink fields (`mode`, `topK`, and the Real-Mode
+  // generation params) are owned by the parent (RagConcept.tsx), not
+  // this component -- applying them means calling the parent's own
+  // setters, which is exactly the "update an external system" case an
+  // effect is for (as opposed to the local fields above, which are
+  // derived during render instead). Runs once on mount only, per
+  // contracts/permalink-contract.md.
+  useEffect(() => {
+    if (initialParsed.topK !== undefined) onTopKChange(initialParsed.topK);
+
+    if (initialParsed.mode !== undefined && realMode && onRealModeChange) {
+      onRealModeChange({ ...realMode, active: initialParsed.mode === "real" });
+    }
+    if (
+      (initialParsed.temperature !== undefined ||
+        initialParsed.fusionN !== undefined ||
+        initialParsed.hydeCount !== undefined) &&
+      generationParams &&
+      onGenerationParamsChange
+    ) {
+      onGenerationParamsChange({
+        temperature: initialParsed.temperature ?? generationParams.temperature,
+        fusionN: initialParsed.fusionN ?? generationParams.fusionN,
+        hydeCount: initialParsed.hydeCount ?? generationParams.hydeCount,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const stepContentRef = useRef<HTMLDivElement>(null);
   const hasMountedRef = useRef(false);
@@ -124,6 +178,15 @@ export function PipelineWalkthrough({
     setResults([]);
   }
 
+  // 003-parameter-exploration US1: clicking a sweep point jumps the
+  // pipeline to that exact chunk size -- the same "lighter invalidation,
+  // no stepper reset" precedent as handleChunkingStrategy above
+  // (contracts/sweep-contract.md's caller contract).
+  function handleSweepJump(size: number) {
+    setChunkSize(size);
+    setResults([]);
+  }
+
   // Move keyboard focus to the newly active step's first interactive
   // control whenever the step changes -- a stepper jump, Back/Next, or the
   // handlers above resetting back to the Document step. On the Document
@@ -148,6 +211,39 @@ export function PipelineWalkthrough({
 
   return (
     <div className="space-y-6">
+      {docNotFoundMessage && (
+        <div role="alert" className="flex items-start justify-between gap-3 rounded-lg border border-danger/40 bg-danger/10 p-3 text-sm text-ink-100">
+          <p>
+            The document &quot;{docNotFoundMessage}&quot; from this link no longer exists -- showing the default
+            document instead.
+          </p>
+          <button
+            type="button"
+            onClick={() => setDocNotFoundMessage(null)}
+            className="shrink-0 rounded border border-chart-line px-2 py-1 text-xs text-ink-300 hover:text-ink-100 transition-colors"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {realMode && generationParams && (
+        <PermalinkButton
+          state={{
+            realMode,
+            generationParams,
+            docId,
+            customMode,
+            chunkSize,
+            overlap,
+            chunkingStrategy,
+            similarityThreshold,
+            topK,
+            query,
+          }}
+        />
+      )}
+
       <StepperNav steps={STEPS} activeIndex={stepIndex} onSelect={goTo} />
 
       <div ref={stepContentRef} tabIndex={-1}>
@@ -209,6 +305,7 @@ export function PipelineWalkthrough({
             realMode={realMode}
             onRealModeChange={onRealModeChange}
             customDoc={customDoc}
+            onSweepJump={handleSweepJump}
           />
         )}
         {stepIndex === 4 && (

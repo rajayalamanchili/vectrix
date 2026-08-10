@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { sampleDocs, chunkText, chunkTextBySentence, type Chunk, type ChunkingStrategy, type SampleDoc } from "../../lib/sampleDocs";
 import { embed, cosineSimilarity } from "../../lib/mockEmbedding";
 import { StarChart, type StarPoint } from "@/components/charts/StarChart";
@@ -10,6 +10,17 @@ import { ErrorBanner } from "../../realMode/ErrorBanner";
 import { createOpenAICompatibleProvider } from "../../realMode/openaiCompatibleProvider";
 import { projectTo2D } from "../../realMode/pca";
 import type { RealModeError, RealModeSession } from "../../realMode/types";
+import {
+  runSimulatedSweep,
+  chunkTextsForSweepPoint,
+  topOneScoreFromVectors,
+  generateSweepChunkSizes,
+  clampOverlapForChunkSize,
+  type SweepPoint,
+  type SweepState,
+} from "../../sweep/runSweep";
+import { sweepCallEstimate } from "../../sweep/sweepCallEstimate";
+import { SweepCurve } from "../../sweep/SweepCurve";
 
 export interface RetrievedChunk {
   chunk: Chunk;
@@ -35,6 +46,7 @@ export function RetrievalStep({
   realMode,
   onRealModeChange,
   customDoc,
+  onSweepJump,
 }: {
   docId: string;
   chunkSize: number;
@@ -51,6 +63,8 @@ export function RetrievalStep({
   onRealModeChange?: (next: RealModeSession) => void;
   /** US3: when non-null, the learner's pasted document replaces the sample lookup by `docId` entirely (FR-005). */
   customDoc?: SampleDoc | null;
+  /** 003-parameter-exploration US1: jumps the pipeline to a sweep point's exact chunk size (contracts/sweep-contract.md). */
+  onSweepJump: (chunkSize: number) => void;
 }) {
   const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks = useMemo(
@@ -233,6 +247,95 @@ export function RetrievalStep({
     setQueryRetryToken((t) => t + 1);
   }
 
+  // 003-parameter-exploration US1: chunk-size sweep. `sweepTokenRef`
+  // implements the cancel-and-replace decision (research.md) -- every
+  // async per-point call closes over the token active when it started
+  // and discards its result if a newer sweep has since begun, the same
+  // pattern this file already uses for corpus/query embed retries.
+  const [sweep, setSweep] = useState<SweepState>({ status: "idle", token: 0, points: [] });
+  const sweepTokenRef = useRef(0);
+
+  function initialSweepPoints(): SweepPoint[] {
+    return generateSweepChunkSizes().map((size) => ({
+      chunkSize: size,
+      clampedOverlap: clampOverlapForChunkSize(overlap, size),
+      status: "pending" as const,
+      topOneScore: null,
+    }));
+  }
+
+  // A document or question change invalidates any sweep computed for
+  // the previous one -- a stale curve would silently mismatch what's
+  // now on screen. A chunkSize jump from clicking a sweep point does
+  // NOT reset it: the curve stays as a navigable summary of where the
+  // learner currently is (Acceptance Scenario 2).
+  useEffect(() => {
+    sweepTokenRef.current += 1;
+    setSweep({ status: "idle", token: sweepTokenRef.current, points: [] });
+  }, [doc, activeQuery]);
+
+  function handleStartSweepClick() {
+    const token = sweepTokenRef.current + 1;
+    sweepTokenRef.current = token;
+    if (isReal) {
+      setSweep({ status: "awaiting-confirmation", token, points: initialSweepPoints() });
+    } else {
+      setSweep({ status: "done", token, points: runSimulatedSweep(doc, overlap, chunkingStrategy, activeQuery) });
+    }
+  }
+
+  async function handleConfirmRealSweep() {
+    if (!realMode?.apiKey) return;
+    const token = sweepTokenRef.current;
+    setSweep((s) => ({ ...s, status: "running" }));
+    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+
+    let queryVector: number[];
+    try {
+      [queryVector] = await provider.embedBatch([activeQuery]);
+    } catch {
+      if (sweepTokenRef.current !== token) return;
+      setSweep((s) => ({
+        ...s,
+        status: "done",
+        points: s.points.map((p) => ({ ...p, status: "error" as const, errorMessage: "Failed to embed the query" })),
+      }));
+      return;
+    }
+    if (sweepTokenRef.current !== token) return;
+
+    for (const size of generateSweepChunkSizes()) {
+      if (sweepTokenRef.current !== token) return;
+      setSweep((s) => ({
+        ...s,
+        points: s.points.map((p) => (p.chunkSize === size ? { ...p, status: "loading" as const } : p)),
+      }));
+      try {
+        const texts = chunkTextsForSweepPoint(doc, size, overlap, chunkingStrategy);
+        const vectors = await provider.embedBatch(texts);
+        if (sweepTokenRef.current !== token) return;
+        const score = topOneScoreFromVectors(vectors, queryVector);
+        setSweep((s) => ({
+          ...s,
+          points: s.points.map((p) => (p.chunkSize === size ? { ...p, status: "done" as const, topOneScore: score } : p)),
+        }));
+      } catch (err) {
+        if (sweepTokenRef.current !== token) return;
+        setSweep((s) => ({
+          ...s,
+          points: s.points.map((p) =>
+            p.chunkSize === size
+              ? { ...p, status: "error" as const, errorMessage: (err as RealModeError).message ?? "Failed to embed this chunk size" }
+              : p,
+          ),
+        }));
+      }
+    }
+    if (sweepTokenRef.current === token) {
+      setSweep((s) => ({ ...s, status: "done" }));
+    }
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
       <div className="space-y-4">
@@ -319,6 +422,50 @@ export function RetrievalStep({
                 </li>
               ))}
             </ol>
+          )}
+        </Panel>
+
+        <Panel className="p-4">
+          <h2 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
+            Chunk-size sensitivity sweep
+          </h2>
+          {sweep.status === "idle" && (
+            <button
+              type="button"
+              onClick={handleStartSweepClick}
+              disabled={!activeQuery}
+              className="rounded border border-doc-teal/40 px-3 py-1.5 text-xs font-medium text-doc-teal transition-colors hover:bg-doc-teal/10 disabled:opacity-30"
+            >
+              Sweep chunk size (9 points)
+            </button>
+          )}
+          {sweep.status === "awaiting-confirmation" && (
+            <div>
+              <p className="mb-2 text-xs text-ink-500">
+                Estimated calls for this sweep:{" "}
+                <span className="font-mono">{sweepCallEstimate(generateSweepChunkSizes().length)}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleConfirmRealSweep()}
+                className="rounded bg-query-amber/20 px-3 py-2 text-xs font-medium text-query-amber transition-colors hover:bg-query-amber/30"
+              >
+                Start sweep
+              </button>
+            </div>
+          )}
+          {(sweep.status === "running" || sweep.status === "done") && (
+            <>
+              <SweepCurve points={sweep.points} onPointActivate={onSweepJump} />
+              <button
+                type="button"
+                onClick={handleStartSweepClick}
+                disabled={sweep.status === "running"}
+                className="mt-3 rounded border border-chart-line px-3 py-1.5 text-xs text-ink-300 transition-colors hover:border-ink-500 hover:text-ink-100 disabled:opacity-30"
+              >
+                Run sweep again
+              </button>
+            </>
           )}
         </Panel>
       </div>

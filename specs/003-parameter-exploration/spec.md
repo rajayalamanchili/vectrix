@@ -24,10 +24,10 @@ the RAG module"
 
 ### User Story 1 - See a sensitivity curve, not just one point (Priority: P1)
 
-A learner wants to see how a metric (e.g. top-1 similarity score) changes
-across a whole range of a parameter -- not just the one value they
-happen to have the slider set to -- so they can see the shape of the
-trade-off, not just a single sample of it.
+A learner wants to see how the top-1 similarity score changes across a
+whole range of a parameter -- not just the one value they happen to
+have the slider set to -- so they can see the shape of the trade-off,
+not just a single sample of it.
 
 **Why this priority**: This is the single highest-leverage addition
 identified against the rest of the field (playground.tensorflow.org's
@@ -37,16 +37,16 @@ infrastructure.
 
 **Independent Test**: On the Retrieval step with a document and question
 selected, activate a sweep on chunk size, and confirm a curve renders
-showing a chosen output metric across a defined range of chunk size
-values, with no manual re-running required per point.
+showing the top-1 similarity score metric across a defined range of
+chunk size values, with no manual re-running required per point.
 
 **Acceptance Scenarios**:
 
 1. **Given** a learner is on the Retrieval step with a question selected,
    **When** they activate a sweep on chunk size, **Then** the app
    automatically re-runs chunking, embedding, and retrieval across a
-   defined range of chunk size values and plots the resulting metric
-   (e.g. top-1 similarity score) as a curve against chunk size.
+   defined range of chunk size values and plots the resulting top-1
+   similarity score as a curve against chunk size.
 2. **Given** a sweep has completed, **When** the learner clicks any point
    on the curve, **Then** the pipeline jumps to that exact parameter
    setting's full state (chunks, chart, retrieval results) -- the curve
@@ -164,8 +164,20 @@ described failure, with an explanation naming the causing parameter.
   see Success Criteria -- not discovered by a learner encountering a
   preset that no longer demonstrates what it claims to.)
 - What happens when a learner tries to permalink a state that includes an
-  active, in-progress sweep? (The permalink should encode the
-  pre-sweep parameter state, not an ambiguous mid-sweep snapshot.)
+  active, in-progress sweep -- including a Real Mode sweep still awaiting
+  cost confirmation, not yet actually running? (Both an awaiting-
+  confirmation sweep and an actively-running one count as "in-progress";
+  the permalink should encode the pre-sweep parameter state in either
+  case, not an ambiguous mid-sweep snapshot.)
+- What happens if a permalink contains a syntactically malformed or
+  out-of-range parameter value (e.g. a chunk size outside the slider's
+  bounds, a similarity threshold outside 0-1)? (That one parameter MUST
+  fall back to its default value rather than applying invalid state;
+  other valid parameters encoded in the same link still apply normally.)
+- What happens if a learner generates a permalink before ever reaching
+  the Retrieval step (i.e., before a question has been set)? (An empty
+  question is validly encodable -- the `q` parameter is simply empty or
+  omitted; this is not a failure case.)
 
 ## Requirements *(mandatory)*
 
@@ -193,14 +205,17 @@ described failure, with an explanation naming the causing parameter.
   (call-count only, no dollar figure -- deferred to Milestone 4's
   cost/call ledger per roadmap.md, matching spec 002 FR-010's own scope)
   and require explicit confirmation before any of those calls are made.
-- **FR-004**: A sweep producing a flat (low-sensitivity) curve MUST be
+- **FR-004**: A sweep producing a flat (low-sensitivity, defined as a
+  top-1 score range below 0.02 across all sweep points) curve MUST be
   presented as a valid, clearly labeled outcome, not as an error or an
   empty state.
 - **FR-005**: The system MUST generate a permalink encoding the current
   mode (Simulated/Real) and all current parameter values (document
   selection, chunk size, overlap, chunking strategy, threshold, Top-K,
   question, and, in Real Mode, temperature, RAG-Fusion N, and HyDE
-  hypothetical count).
+  hypothetical count). The "Generate permalink" control MUST be
+  reachable from any pipeline step, not gated behind reaching a specific
+  one.
 - **FR-006**: A generated permalink MUST NOT include any API key or
   credential under any circumstance.
 - **FR-007**: A permalink MUST exclude custom pasted Real Mode document
@@ -208,14 +223,20 @@ described failure, with an explanation naming the causing parameter.
   generating a link under those conditions, not silently applied.
 - **FR-008**: Opening a valid permalink MUST reproduce every encoded
   parameter without requiring the visitor to manually re-enter any of
-  them, while never assuming or requiring a shared API key.
+  them, while never assuming or requiring a shared API key. A parameter
+  that is malformed or outside its control's valid range MUST fall back
+  to that parameter's default rather than applying invalid state,
+  without invalidating the rest of the link's valid parameters.
 - **FR-009**: The system MUST ship at least three named failure presets
   (at minimum: threshold-too-strict producing an empty result set,
   chunk-too-large, and chunk-too-small/fact-split), each associated with
   a specific parameter configuration, sample document, and question, and
-  each accompanied by an explanation naming the causing parameter.
-- **FR-010**: A "reset to defaults" control MUST be reachable from any
-  preset-loaded or swept state.
+  each accompanied by an explanation naming the causing parameter. The
+  preset picker MUST be reachable from any pipeline step (matching User
+  Story 3's Independent Test), not only a specific one.
+- **FR-010**: A "reset to defaults" control MUST be reachable at all
+  times, regardless of how the current state was reached (default,
+  preset-loaded, swept, or permalink-loaded).
 
 ### Key Entities *(include if feature involves data)*
 
@@ -242,7 +263,12 @@ described failure, with an explanation naming the causing parameter.
 - **SC-001**: A learner can identify, from a sweep curve alone, at least
   one parameter range where the output metric changes meaningfully and
   at least one range where it stays flat, without manually re-running the
-  pipeline by hand at each point.
+  pipeline by hand at each point -- verified against the shipped
+  "coffee" sample document and its first sample query (the same fixture
+  spec 001's SC-006 determinism check uses): the 9-point sweep produces
+  a clearly flat sub-range (chunk sizes 70-85, top-1 score delta
+  ~0.003) and a clearly meaningful-change sub-range (chunk sizes 45-60,
+  delta ~0.09), confirmed against the live `chunkText`/`embed` pipeline.
 - **SC-002**: Every generated permalink, when inspected, is verified by
   an automated check to contain zero API keys or credentials.
 - **SC-003**: Opening a permalink in a fresh, stateless browser session
@@ -252,9 +278,10 @@ described failure, with an explanation naming the causing parameter.
   check run against the current pipeline implementation, to still
   produce its labeled failure -- not merely to load static numbers that
   may have drifted out of sync with pipeline changes over time.
-- **SC-005**: 100% of Real Mode sweeps requiring more than one real API
-  call show a call-count estimate and require confirmation before any
-  call is made -- verified by test, not by inspection alone.
+- **SC-005**: Every Real Mode sweep -- which, given the fixed 9-point
+  range, always requires more than one real API call -- shows a
+  call-count estimate and requires confirmation before any call is made
+  -- verified by test, not by inspection alone.
 
 ## Assumptions
 

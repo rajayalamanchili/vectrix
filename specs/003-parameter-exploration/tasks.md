@@ -28,10 +28,10 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 **Purpose**: Confirm the baseline before any change lands, and scaffold this feature's three new subfolders.
 
-- [ ] T001 Run `npm run build` and `npm run dev` on branch `003-parameter-exploration` to confirm Milestones 1-2's build/dev server are unaffected before this feature's work begins
-- [ ] T002 [P] Create the `src/concepts/rag/sweep/` directory (US1's home)
-- [ ] T003 [P] Create the `src/concepts/rag/permalink/` directory (US2's home)
-- [ ] T004 [P] Create the `src/concepts/rag/failurePresets/` directory (US3's home)
+- [X] T001 Run `npm run build` and `npm run dev` on branch `003-parameter-exploration` to confirm Milestones 1-2's build/dev server are unaffected before this feature's work begins
+- [X] T002 [P] Create the `src/concepts/rag/sweep/` directory (US1's home)
+- [X] T003 [P] Create the `src/concepts/rag/permalink/` directory (US2's home)
+- [X] T004 [P] Create the `src/concepts/rag/failurePresets/` directory (US3's home)
 
 **Checkpoint**: Baseline confirmed clean; scaffolds ready.
 
@@ -43,7 +43,7 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T005 Wrap `<Component />` in `<Suspense>` (with a minimal fallback) in `src/app/concepts/[conceptId]/page.tsx` -- required by `useSearchParams()`'s static-rendering constraint on this statically-generated route (research.md's Next.js-docs finding: a production build fails without it). The wrapper carries no `concept.id`-keyed logic, so `check:extensibility` is unaffected. Re-run `npm run build` afterward to confirm it still succeeds.
+- [X] T005 Wrap `<Component />` in `<Suspense>` (with a minimal fallback) in `src/app/concepts/[conceptId]/page.tsx` -- required by `useSearchParams()`'s static-rendering constraint on this statically-generated route (research.md's Next.js-docs finding: a production build fails without it). The wrapper carries no `concept.id`-keyed logic, so `check:extensibility` is unaffected. Re-run `npm run build` afterward to confirm it still succeeds.
 
 **Checkpoint**: Foundational prerequisite in place -- user story implementation can now begin. Unlike Milestone 2, no shared provider/type abstraction is needed here (research.md); each story below is otherwise self-contained.
 
@@ -57,15 +57,15 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 ### Implementation for User Story 1
 
-- [ ] T006 [P] [US1] Implement `generateSweepChunkSizes()` and `runSimulatedSweep()` in `src/concepts/rag/sweep/runSweep.ts` per contracts/sweep-contract.md: the fixed 9-value range (`[20, 35, 45, 60, 70, 85, 95, 110, 120]`), per-point overlap clamping (`Math.min(overlap, chunkSize - 5)`), and the top-1 similarity score metric (`ranked[0]?.score ?? 0`, computed before threshold/Top-K filtering) using the existing `chunkText`/`chunkTextBySentence`/`embed`/`cosineSimilarity` functions
-- [ ] T007 [P] [US1] Implement `sweepCallEstimate()` in `src/concepts/rag/sweep/sweepCallEstimate.ts`: `pointCount + 1` (9 corpus-embeds + 1 shared query-embed), matching `callEstimate.ts`'s existing pure-formula style
-- [ ] T008 [US1] Implement `SweepCurve.tsx` in `src/concepts/rag/sweep/SweepCurve.tsx`: a decorative `aria-hidden` SVG line/axis background sized via `StarChart.tsx`'s screen-space math, with one native `<button>` per `SweepPoint` absolutely positioned on top -- individually focusable and Enter/Space-activatable, accessible name stating chunk size and score, `disabled` while `status !== "done"`, plus a "doesn't move the outcome much here" caption when the score range across `"done"` points is below 0.02 (FR-002, FR-004, Constitution VII) -- depends on T006's `SweepPoint` type
-- [ ] T009 [US1] Add sweep state (`SweepState`, a `sweepToken` cancellation counter per research.md's cancel-and-replace decision) and Simulated-Mode instant-run wiring to `src/concepts/rag/pipeline/steps/RetrievalStep.tsx`, rendering `SweepCurve` below the existing `StarChart` (depends on T006, T008)
-- [ ] T010 [US1] Add Real Mode sweep execution to `RetrievalStep.tsx`: an `awaiting-confirmation` status showing `sweepCallEstimate()`'s estimate next to a "Start sweep" button (FR-003's confirmation gate), then sequential per-point `embedBatch()` calls reusing one shared query embedding fetched once, with a failed point's error handled without aborting the remaining points (contracts/sweep-contract.md) (depends on T007, T009)
-- [ ] T011 [US1] Add an `onSweepJump` prop to `PipelineWalkthrough.tsx` (`setChunkSize(chunkSize); setResults([]);` per contracts/sweep-contract.md's caller contract, mirroring the existing `handleChunkingStrategy` "lighter invalidation, no stepper reset" precedent) and thread it to `RetrievalStep`; wire `SweepCurve.onPointActivate` to call it (depends on T009)
-- [ ] T012 [P] [US1] Create `tests/parameter-exploration/sweep-keyboard-and-confirmation.spec.ts`: asserts every sweep point is Tab-reachable and Enter/Space-activatable (FR-002, Constitution VII), and that a Real Mode sweep shows its call-count estimate and issues no API call until explicitly confirmed (SC-005), mocked provider
-- [ ] T013 [P] [US1] Create `tests/a11y/parameter-exploration.spec.ts` covering the sweep curve's points (axe scan + keyboard coverage) -- the first file in this feature's a11y spec, extended by US2 and US3 below
-- [ ] T014 [US1] Manual scenario validation: quickstart.md scenarios 1-3 (sweep renders and is navigable, Real Mode cost gate, flat-curve labeling)
+- [X] T006 [P] [US1] Implement `generateSweepChunkSizes()` and `runSimulatedSweep()` in `src/concepts/rag/sweep/runSweep.ts` per contracts/sweep-contract.md: the fixed 9-value range (`[20, 35, 45, 60, 70, 85, 95, 110, 120]`), per-point overlap clamping (`Math.min(overlap, chunkSize - 5)`), and the top-1 similarity score metric (`ranked[0]?.score ?? 0`, computed before threshold/Top-K filtering) using the existing `chunkText`/`chunkTextBySentence`/`embed`/`cosineSimilarity` functions
+- [X] T007 [P] [US1] Implement `sweepCallEstimate()` in `src/concepts/rag/sweep/sweepCallEstimate.ts`: `pointCount + 1` (9 corpus-embeds + 1 shared query-embed), matching `callEstimate.ts`'s existing pure-formula style
+- [X] T008 [US1] Implement `SweepCurve.tsx` in `src/concepts/rag/sweep/SweepCurve.tsx`: a decorative `aria-hidden` SVG line/axis background sized via `StarChart.tsx`'s screen-space math, with one native `<button>` per `SweepPoint` absolutely positioned on top -- individually focusable and Enter/Space-activatable, accessible name stating chunk size and score, `disabled` while `status !== "done"`, plus a "doesn't move the outcome much here" caption when the score range across `"done"` points is below 0.02 (FR-002, FR-004, Constitution VII) -- depends on T006's `SweepPoint` type
+- [X] T009 [US1] Add sweep state (`SweepState`, a `sweepToken` cancellation counter per research.md's cancel-and-replace decision) and Simulated-Mode instant-run wiring to `src/concepts/rag/pipeline/steps/RetrievalStep.tsx`, rendering `SweepCurve` below the existing `StarChart` (depends on T006, T008)
+- [X] T010 [US1] Add Real Mode sweep execution to `RetrievalStep.tsx`: an `awaiting-confirmation` status showing `sweepCallEstimate()`'s estimate next to a "Start sweep" button (FR-003's confirmation gate), then sequential per-point `embedBatch()` calls reusing one shared query embedding fetched once, with a failed point's error handled without aborting the remaining points (contracts/sweep-contract.md) (depends on T007, T009)
+- [X] T011 [US1] Add an `onSweepJump` prop to `PipelineWalkthrough.tsx` (`setChunkSize(chunkSize); setResults([]);` per contracts/sweep-contract.md's caller contract, mirroring the existing `handleChunkingStrategy` "lighter invalidation, no stepper reset" precedent) and thread it to `RetrievalStep`; wire `SweepCurve.onPointActivate` to call it (depends on T009)
+- [X] T012 [P] [US1] Create `tests/parameter-exploration/sweep-keyboard-and-confirmation.spec.ts`: asserts every sweep point is Tab-reachable and Enter/Space-activatable (FR-002, Constitution VII), and that a Real Mode sweep shows its call-count estimate and issues no API call until explicitly confirmed (SC-005), mocked provider
+- [X] T013 [P] [US1] Create `tests/a11y/parameter-exploration.spec.ts` covering the sweep curve's points (axe scan + keyboard coverage) -- the first file in this feature's a11y spec, extended by US2 and US3 below
+- [X] T014 [US1] Manual scenario validation: quickstart.md scenarios 1-3 (sweep renders and is navigable, Real Mode cost gate, flat-curve labeling)
 
 **Checkpoint**: US1 independently functional -- sweep curve complete, keyboard-operable, cost-gated in Real Mode.
 
@@ -79,14 +79,14 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 ### Implementation for User Story 2
 
-- [ ] T015 [P] [US2] Implement `buildPermalinkParams()`/`parsePermalinkParams()` in `src/concepts/rag/permalink/permalinkParams.ts` per contracts/permalink-contract.md: `PermalinkSourceState`'s field list structurally excludes `apiKey`/custom document text (FR-006, FR-007), and `parsePermalinkParams` validates `doc` against the real `sampleDocs` ids, setting `docNotFound` instead of silently defaulting
-- [ ] T016 [US2] Implement `PermalinkButton.tsx` in `src/concepts/rag/permalink/PermalinkButton.tsx`: "Generate permalink" action, `navigator.clipboard.writeText` copy, `aria-live="polite"` "Copied" confirmation, and a custom-document-exclusion notice shown whenever `customMode === "custom"` (FR-007) (depends on T015)
-- [ ] T017 [US2] Add an on-mount-only permalink-apply effect to `PipelineWalkthrough.tsx`: calls `useSearchParams()` once, applies every parsed field to its `useState` setter, sets `realMode.active`/`generationParams` via the existing `onRealModeChange`/`onGenerationParamsChange` props, and renders a dismissible "this document no longer exists" message when `docNotFound` is set (FR-008, Edge Cases) (depends on T015, T005)
-- [ ] T018 [US2] Render `PermalinkButton` in `PipelineWalkthrough.tsx`'s chrome, above `StepperNav` (depends on T016, T017)
-- [ ] T019 [P] [US2] Create `scripts/checks/permalink-safety.ts` (SC-002): calls the real `buildPermalinkParams()` with a fixture containing a fake API key and custom document text present elsewhere in a full `RealModeSession`, fails if either appears in the output; add a `check:parameter-exploration` npm script running it (depends on T015)
-- [ ] T020 [P] [US2] Create `tests/parameter-exploration/permalink-roundtrip.spec.ts` (SC-003): generates a permalink with non-default values across every FR-005 parameter, opens it in a fresh browser context, and asserts every value reproduces exactly; also covers the Edge Case of generating a permalink while a sweep is active/awaiting-confirmation, asserting only pre-sweep parameters are encoded (quickstart.md scenario 8)
-- [ ] T021 [P] [US2] Extend `tests/a11y/parameter-exploration.spec.ts` with the permalink button and its `aria-live` confirmation region
-- [ ] T022 [US2] Manual scenario validation: quickstart.md scenarios 4-8 (permalink round-trip, Real Mode params visible without a key, custom-document exclusion, removed-document failure message, permalink during an active sweep)
+- [X] T015 [P] [US2] Implement `buildPermalinkParams()`/`parsePermalinkParams()` in `src/concepts/rag/permalink/permalinkParams.ts` per contracts/permalink-contract.md: `PermalinkSourceState`'s field list structurally excludes `apiKey`/custom document text (FR-006, FR-007), `parsePermalinkParams` validates `doc` against the real `sampleDocs` ids (setting `docNotFound` instead of silently defaulting), and every other field is independently range-checked against its control's valid bounds, omitted (left `undefined`) rather than clamped when out-of-range or unparseable (FR-008)
+- [X] T016 [US2] Implement `PermalinkButton.tsx` in `src/concepts/rag/permalink/PermalinkButton.tsx`: "Generate permalink" action, `navigator.clipboard.writeText` copy, `aria-live="polite"` "Copied" confirmation, and a custom-document-exclusion notice shown whenever `customMode === "custom"` (FR-007) (depends on T015)
+- [X] T017 [US2] Add an on-mount-only permalink-apply effect to `PipelineWalkthrough.tsx`: calls `useSearchParams()` once, applies every parsed field to its `useState` setter, sets `realMode.active`/`generationParams` via the existing `onRealModeChange`/`onGenerationParamsChange` props, and renders a dismissible "this document no longer exists" message when `docNotFound` is set (FR-008, Edge Cases) (depends on T015, T005)
+- [X] T018 [US2] Render `PermalinkButton` in `PipelineWalkthrough.tsx`'s chrome, above `StepperNav` (depends on T016, T017)
+- [X] T019 [P] [US2] Create `scripts/checks/permalink-safety.ts` (SC-002): calls the real `buildPermalinkParams()` with a fixture containing a fake API key and custom document text present elsewhere in a full `RealModeSession`, fails if either appears in the output; add a `check:parameter-exploration` npm script running it (depends on T015)
+- [X] T020 [P] [US2] Create `tests/parameter-exploration/permalink-roundtrip.spec.ts` (SC-003): generates a permalink with non-default values across every FR-005 parameter, opens it in a fresh browser context, and asserts every value reproduces exactly; also covers the Edge Case of generating a permalink while a sweep is active/awaiting-confirmation, asserting only pre-sweep parameters are encoded (quickstart.md scenario 8)
+- [X] T021 [P] [US2] Extend `tests/a11y/parameter-exploration.spec.ts` with the permalink button and its `aria-live` confirmation region
+- [X] T022 [US2] Manual scenario validation: quickstart.md scenarios 4-8 (permalink round-trip, Real Mode params visible without a key, custom-document exclusion, removed-document failure message, permalink during an active sweep)
 
 **Checkpoint**: US1 + US2 together are the MVP -- the sweep and the permalink are both independently demonstrable.
 
