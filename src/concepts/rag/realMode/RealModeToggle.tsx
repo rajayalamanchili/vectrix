@@ -57,15 +57,15 @@ export function RealModeToggle({
         onClick={handleToggle}
         className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
           realMode.active
-            ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
-            : "border-chart-line text-ink-500 hover:text-ink-300"
+            ? "border-doc-teal bg-doc-teal text-chart-bg"
+            : "border-chart-line bg-transparent text-ink-500 hover:border-ink-500 hover:text-ink-300"
         }`}
       >
         <span
           aria-hidden="true"
-          className={`h-2 w-2 rounded-full ${realMode.active ? "bg-doc-teal" : "bg-ink-500"}`}
+          className={`h-2 w-2 rounded-full ${realMode.active ? "bg-chart-bg" : "bg-ink-500"}`}
         />
-        Real Mode
+        Real Mode {realMode.active ? "ON" : "OFF"}
       </button>
 
       {needsKey && (

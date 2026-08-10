@@ -47,7 +47,19 @@ export function RagConcept() {
 
   return (
     <div>
-      <div className="mb-6 flex gap-1 border-b border-chart-line">
+      {/* Ambient, page-level cue for Real Mode's on/off state (distinct
+          from the toggle's own styling) so the mode is legible at a
+          glance from anywhere on the page, not just when looking
+          directly at the toggle -- Constitution Principle II, this
+          project's own "never blur simulated vs. real" rule. */}
+      <div
+        aria-hidden="true"
+        className={`mb-4 h-1 rounded-full transition-colors ${realMode.active ? "bg-doc-teal" : "bg-transparent"}`}
+      />
+
+      <div
+        className={`mb-6 flex gap-1 border-b transition-colors ${realMode.active ? "border-doc-teal/40" : "border-chart-line"}`}
+      >
         {TABS.map((t) => (
           <button
             key={t.id}
