@@ -183,8 +183,27 @@ data across sessions.
 
 ## Milestone 3: Parameter Exploration & Sharing
 **Spec**: `specs/003-parameter-exploration/spec.md`
-**Status**: Spec drafted, pending `/speckit.clarify` and `/speckit.plan` --
-do not begin until Milestone 2's Definition of Done is met.
+**Status**: `/speckit.implement` has run (2026-08-10). All 31 tasks in
+`tasks.md` are complete. `npm run check:all` (extensibility, disclosure,
+determinism, `check:a11y` 48/48, `check:key-isolation`, `check:real-mode`
+17/17, `check:parameter-exploration`) passes clean, alongside `npm run
+build`/`tsc`/`eslint`. The Milestone 1+2 regression pass found one
+genuine (non-behavioral) regression: two Milestone 1 a11y tests assumed
+a single page-wide `role="status"` element, which broke once
+`PermalinkButton`'s own always-present `aria-live` region was added --
+fixed by scoping those two tests' locators to their message text: no
+actual learner-facing behavior changed. A second real defect (not just a
+test issue) was caught by `check:a11y` itself: the failure-preset
+picker's selected-state styling (`text-danger` on a `bg-danger/15` tint)
+scored 4.12:1 contrast, under WCAG's 4.5:1 minimum -- fixed by dropping
+the background tint and using an underline instead for the selected
+state, matching the already-passing unselected style's contrast.
+SC-002 (permalink-safety.ts, fixture-based: verifies `buildPermalinkParams`
+never serializes an API key or custom document text even when a caller
+passes a larger, non-conforming state object at runtime) and SC-004
+(failure-presets.ts: runs all three shipped presets through the live
+chunk/embed/rank pipeline, not stored expectations) both pass as the
+hard gates spec.md requires. Milestone 3's Definition of Done is met.
 
 **Scope**: Parameter sweep curves (starting with chunk size), showing an
 output metric across a whole range instead of one point at a time;
@@ -303,23 +322,34 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.8.0 -- 2026-08-08, **Milestone 2's Definition of Done is
-fully met -- all 59 of 59 tasks in `specs/002-real-mode/tasks.md` are
-complete.** Phase 9's polish/regression pass closed out the milestone:
-`npm run check:all` (extensibility, disclosure, determinism,
-`check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17) and
-`npm run build`/`tsc`/`eslint` all pass clean (T057); the Milestone 1
-regression pass confirmed zero behavioral difference with Real Mode
-present but never toggled on, satisfying 002-spec's own SC-001/SC-002
-(T056); and a real end-to-end run against the live OpenAI API confirmed
-every acceptance scenario -- Real Mode activation, real embedding/
-retrieval charts, real generation with observable temperature effects,
-custom documents, and HyDE/RAG-Fusion executing for real with visible
-intermediate steps -- against the actual provider (T058-T059), which
-also retroactively closed four tasks left blocked earlier in the
-implementation for lack of a real API key (T023, T035, T048, T055).
+**Version**: 1.9.0 -- 2026-08-10, **Milestone 3's Definition of Done is
+fully met -- all 31 of 31 tasks in `specs/003-parameter-exploration/
+tasks.md` are complete.** `npm run check:all` (extensibility, disclosure,
+determinism, `check:a11y` 48/48, `check:key-isolation`, `check:real-mode`
+17/17, `check:parameter-exploration`) and `npm run build`/`tsc`/`eslint`
+all pass clean. All three user stories are built and independently
+verified: the 9-point chunk-size sweep curve (US1, keyboard-operable,
+Real-Mode-cost-gated); shareable permalinks that structurally exclude
+API keys and custom document text (US2, `permalink-safety.ts`
+fixture-verifies this against a runtime-constructed state object, not
+just the type system); and three curated failure presets kept honest by
+`failure-presets.ts` running them through the live pipeline (US3). The
+Milestone 1+2 regression pass surfaced and fixed two real issues: two
+Milestone 1 a11y tests broke on locator ambiguity once
+`PermalinkButton`'s always-present `aria-live` region was added (test
+fix only, no behavior change), and the failure-preset picker's
+selected-state styling initially failed WCAG contrast (4.12:1 vs. the
+4.5:1 minimum), fixed before this version closed.
 
-Supersedes 1.7.0 (2026-08-05, Milestone 1's Definition of Done fully
+Supersedes 1.8.0 (2026-08-08, Milestone 2's Definition of Done fully
+met -- all 59 of 59 tasks in `specs/002-real-mode/tasks.md` complete;
+`npm run check:all` -- extensibility, disclosure, determinism,
+`check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17 --
+and `npm run build`/`tsc`/`eslint` all passed clean; the Milestone 1
+regression pass confirmed zero behavioral difference with Real Mode
+present but never toggled on; and a real end-to-end run against the live
+OpenAI API confirmed every acceptance scenario against the actual
+provider), 1.7.0 (2026-08-05, Milestone 1's Definition of Done fully
 met -- all 57 of 57 tasks in that feature's `tasks.md` complete after
 the root-access gap blocking `check:a11y` closed), 1.6.0 (2026-08-05,
 the root-access gap blocking `check:a11y`

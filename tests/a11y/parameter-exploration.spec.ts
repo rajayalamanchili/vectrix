@@ -82,3 +82,57 @@ test.describe("Permalink button accessibility (US2)", () => {
     await expect(status).toHaveText("Copied to clipboard");
   });
 });
+
+/**
+ * SC-005 (003-spec) + US3: the failure preset picker's three preset
+ * buttons and its always-visible "Reset to defaults" control.
+ */
+test.describe("Failure preset picker accessibility (US3)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/concepts/rag");
+  });
+
+  test("has no automatically detectable WCAG 2.1 A/AA violations with a preset loaded", async ({ page }) => {
+    await page.getByRole("button", { name: "Threshold too strict" }).click();
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(results.violations, JSON.stringify(results.violations, null, 2)).toEqual([]);
+  });
+
+  test("each preset button is Tab-reachable, Enter-activatable, and exposes selected state via aria-pressed", async ({
+    page,
+  }) => {
+    const preset = page.getByRole("button", { name: "Chunk too large" });
+    await expect(preset).not.toHaveAccessibleName("Button");
+    await expect(preset).toHaveAttribute("aria-pressed", "false");
+
+    await preset.focus();
+    await page.keyboard.press("Enter");
+    await expect(preset).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("loading a preset shows its explanation as visible text naming the causing parameter", async ({ page }) => {
+    await page.getByRole("button", { name: "Chunk too small" }).click();
+    await expect(page.getByText(/Chunk size 20/i)).toBeVisible();
+  });
+
+  test("'Reset to defaults' is Tab-reachable and keyboard-activatable from a preset-loaded state", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "Threshold too strict" }).click();
+    const resetButton = page.getByRole("button", { name: "Reset to defaults" });
+    await expect(resetButton).not.toHaveAccessibleName("Button");
+
+    await resetButton.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("button", { name: "Threshold too strict" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("'Reset to defaults' is reachable and keyboard-operable from a mid-sweep state", async ({ page }) => {
+    await page.getByRole("button", { name: "Retrieval" }).click();
+    await page.getByRole("button", { name: "Sweep chunk size (9 points)" }).click();
+    const resetButton = page.getByRole("button", { name: "Reset to defaults" });
+    await expect(resetButton).toBeVisible();
+    await resetButton.focus();
+    await page.keyboard.press("Enter");
+  });
+});

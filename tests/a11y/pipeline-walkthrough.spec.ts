@@ -74,7 +74,11 @@ test.describe("Pipeline Walkthrough accessibility", () => {
     await threshold.focus();
     await threshold.fill("1");
     await page.keyboard.press("ArrowRight"); // commit/normalize in case fill() alone doesn't fire change
-    await expect(page.getByRole("status")).toContainText("No chunks meet the current similarity threshold");
+    // 003-parameter-exploration adds its own always-present, initially-empty
+    // aria-live status region (PermalinkButton's "Copied" confirmation), so
+    // this can no longer assume a single page-wide status role -- scope to
+    // the one with this message's text.
+    await expect(page.getByRole("status").filter({ hasText: "No chunks meet the current similarity threshold" })).toBeVisible();
   });
 
   test('empty-retrieved-list message is inside the "Retrieved, ranked by similarity" heading region', async ({
@@ -86,7 +90,7 @@ test.describe("Pipeline Walkthrough accessibility", () => {
     await threshold.fill("1");
     const heading = page.getByRole("heading", { name: "Retrieved, ranked by similarity" });
     await expect(heading).toBeVisible();
-    const status = page.getByRole("status");
+    const status = page.getByRole("status").filter({ hasText: "No chunks meet the current similarity threshold" });
     await expect(status).toBeVisible();
   });
 

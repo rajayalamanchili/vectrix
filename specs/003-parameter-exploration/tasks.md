@@ -100,12 +100,12 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 ### Implementation for User Story 3
 
-- [ ] T023 [P] [US3] Define `FAILURE_PRESETS` (3 shipped values + their `expectedFailure` predicates) in `src/concepts/rag/failurePresets/failurePresets.ts` per contracts/failure-preset-contract.md and data-model.md -- `threshold-too-strict` (`{ type: "empty-results" }`), `chunk-too-large` and `chunk-too-small` (both `{ type: "fact-split", factSubstring }`, using the "coffee" doc's espresso-extraction sentence) -- each with a learner-facing `explanation` naming the causing parameter and its value
-- [ ] T024 [US3] Implement `FailurePresetPicker.tsx` in `src/concepts/rag/failurePresets/FailurePresetPicker.tsx`: preset selector plus an always-visible "Reset to defaults" control (depends on T023)
-- [ ] T025 [US3] Add apply-preset and reset-to-defaults handlers to `PipelineWalkthrough.tsx` (apply every `FailurePreset` field in one update + `goTo(3)`, mirroring `handleDocSelect`'s existing all-at-once reset pattern; reset restores the existing initial `useState` values) and render `FailurePresetPicker` above `StepperNav` so it's reachable regardless of `stepIndex` (depends on T024)
-- [ ] T026 [P] [US3] Create `scripts/checks/failure-presets.ts` (SC-004): runs each `FAILURE_PRESETS` entry's exact configuration through the live `chunkText`/`chunkTextBySentence`/`embed`/`cosineSimilarity` functions and asserts its `expectedFailure` predicate holds; extend `check:parameter-exploration` to include it (depends on T023)
-- [ ] T027 [P] [US3] Extend `tests/a11y/parameter-exploration.spec.ts` with the preset picker and reset-to-defaults control
-- [ ] T028 [US3] Manual scenario validation: quickstart.md scenarios 9-10 (failure presets each naming their causing parameter, reset to defaults from both a preset-loaded and a mid-sweep state)
+- [X] T023 [P] [US3] Define `FAILURE_PRESETS` (3 shipped values + their `expectedFailure` predicates) in `src/concepts/rag/failurePresets/failurePresets.ts` per contracts/failure-preset-contract.md and data-model.md -- `threshold-too-strict` (`{ type: "empty-results" }`), `chunk-too-large` and `chunk-too-small` (both `{ type: "fact-split", factSubstring }`, using the "coffee" doc's espresso-extraction sentence) -- each with a learner-facing `explanation` naming the causing parameter and its value
+- [X] T024 [US3] Implement `FailurePresetPicker.tsx` in `src/concepts/rag/failurePresets/FailurePresetPicker.tsx`: preset selector plus an always-visible "Reset to defaults" control (depends on T023)
+- [X] T025 [US3] Add apply-preset and reset-to-defaults handlers to `PipelineWalkthrough.tsx` (apply every `FailurePreset` field in one update + `goTo(3)`, mirroring `handleDocSelect`'s existing all-at-once reset pattern; reset restores the existing initial `useState` values) and render `FailurePresetPicker` above `StepperNav` so it's reachable regardless of `stepIndex` (depends on T024)
+- [X] T026 [P] [US3] Create `scripts/checks/failure-presets.ts` (SC-004): runs each `FAILURE_PRESETS` entry's exact configuration through the live `chunkText`/`chunkTextBySentence`/`embed`/`cosineSimilarity` functions and asserts its `expectedFailure` predicate holds; extend `check:parameter-exploration` to include it (depends on T023)
+- [X] T027 [P] [US3] Extend `tests/a11y/parameter-exploration.spec.ts` with the preset picker and reset-to-defaults control
+- [X] T028 [US3] Manual scenario validation: quickstart.md scenarios 9-10 (failure presets each naming their causing parameter, reset to defaults from both a preset-loaded and a mid-sweep state)
 
 **Checkpoint**: All three user stories independently functional.
 
@@ -115,9 +115,9 @@ Single Next.js project (existing, per plan.md's Structure Decision -- no new top
 
 **Purpose**: Wire this feature's checks into the project-wide aggregate and confirm no regression.
 
-- [ ] T029 Wire `tests/parameter-exploration/*.spec.ts` into `check:parameter-exploration`'s Playwright half (`playwright test tests/parameter-exploration/`) and add `check:parameter-exploration` to `check:all` in `package.json` (depends on T012, T019, T020, T026)
-- [ ] T030 Run the Milestone 1 + Milestone 2 regression pass: re-run `specs/001-core-platform-rag-module/quickstart.md` and `specs/002-real-mode/quickstart.md`'s scenario 0 with this feature's controls untouched, confirming no behavioral change
-- [ ] T031 Run `npm run check:all` (extensibility, disclosure, determinism, a11y, key-isolation, real-mode, parameter-exploration) plus `npm run build` and `npx eslint .`, and fix any failure
+- [X] T029 Wire `tests/parameter-exploration/*.spec.ts` into `check:parameter-exploration`'s Playwright half (`playwright test tests/parameter-exploration/`) and add `check:parameter-exploration` to `check:all` in `package.json` (depends on T012, T019, T020, T026)
+- [X] T030 Run the Milestone 1 + Milestone 2 regression pass: re-run `specs/001-core-platform-rag-module/quickstart.md` and `specs/002-real-mode/quickstart.md`'s scenario 0 with this feature's controls untouched, confirming no behavioral change
+- [X] T031 Run `npm run check:all` (extensibility, disclosure, determinism, a11y, key-isolation, real-mode, parameter-exploration) plus `npm run build` and `npx eslint .`, and fix any failure
 
 **Checkpoint**: spec.md 003's Definition of Done is met.
 

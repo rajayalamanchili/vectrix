@@ -12,6 +12,8 @@ import { RetrievalStep, type RetrievedChunk } from "./steps/RetrievalStep";
 import { GenerationStep } from "./steps/GenerationStep";
 import { parsePermalinkParams } from "../permalink/permalinkParams";
 import { PermalinkButton } from "../permalink/PermalinkButton";
+import { FailurePresetPicker } from "../failurePresets/FailurePresetPicker";
+import type { FailurePreset } from "../failurePresets/failurePresets";
 
 const STEPS = [
   { label: "Document" },
@@ -93,6 +95,12 @@ export function PipelineWalkthrough({
   const [docNotFoundMessage, setDocNotFoundMessage] = useState<string | null>(
     () => initialParsed.docNotFound ?? null,
   );
+
+  // 003-parameter-exploration US3: which failure preset (if any) is
+  // currently loaded, so its explanation can stay visible alongside the
+  // picker (FR-009) -- null for the default state, a swept state, or a
+  // permalink-loaded state, none of which are a preset.
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
   // The remaining permalink fields (`mode`, `topK`, and the Real-Mode
   // generation params) are owned by the parent (RagConcept.tsx), not
@@ -187,6 +195,44 @@ export function PipelineWalkthrough({
     setResults([]);
   }
 
+  // 003-parameter-exploration US3: loading a failure preset applies
+  // every field in one update (mirroring handleDocSelect's existing
+  // all-at-once reset pattern above) and jumps straight to Retrieval so
+  // the failure is immediately visible (data-model.md's FailurePreset
+  // caller contract).
+  function handleSelectPreset(preset: FailurePreset) {
+    setDocId(preset.docId);
+    setCustomMode("sample");
+    setChunkSize(preset.chunkSize);
+    setOverlap(preset.overlap);
+    setChunkingStrategy(preset.chunkingStrategy);
+    setSimilarityThreshold(preset.similarityThreshold);
+    onTopKChange(preset.topK);
+    setQuery(preset.query);
+    setResults([]);
+    setDocNotFoundMessage(null);
+    setActivePresetId(preset.id);
+    goTo(3);
+  }
+
+  // FR-010: reachable from any state (default, preset-loaded, swept, or
+  // permalink-loaded) and restores exactly this component's own initial
+  // useState values (data-model.md) -- not itself a FailurePreset value.
+  function handleResetToDefaults() {
+    setDocId("coffee");
+    setCustomMode("sample");
+    setCustomText("");
+    setCustomQuestion("");
+    setChunkSize(60);
+    setOverlap(15);
+    setChunkingStrategy("fixed");
+    setSimilarityThreshold(0);
+    setQuery("");
+    setResults([]);
+    setDocNotFoundMessage(null);
+    setActivePresetId(null);
+  }
+
   // Move keyboard focus to the newly active step's first interactive
   // control whenever the step changes -- a stepper jump, Back/Next, or the
   // handlers above resetting back to the Document step. On the Document
@@ -243,6 +289,12 @@ export function PipelineWalkthrough({
           }}
         />
       )}
+
+      <FailurePresetPicker
+        activePresetId={activePresetId}
+        onSelectPreset={handleSelectPreset}
+        onReset={handleResetToDefaults}
+      />
 
       <StepperNav steps={STEPS} activeIndex={stepIndex} onSelect={goTo} />
 
