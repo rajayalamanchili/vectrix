@@ -1,6 +1,6 @@
 "use client";
 
-import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy } from "../../lib/sampleDocs";
+import { sampleDocs, chunkText, chunkTextBySentence, type ChunkingStrategy, type SampleDoc } from "../../lib/sampleDocs";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { Slider } from "@/components/ui/Slider";
 import { Badge } from "@/components/ui/Badge";
@@ -25,6 +25,7 @@ export function ChunkingStep({
   onChunkSize,
   onOverlap,
   onChunkingStrategy,
+  customDoc,
 }: {
   docId: string;
   chunkSize: number;
@@ -33,8 +34,10 @@ export function ChunkingStep({
   onChunkSize: (v: number) => void;
   onOverlap: (v: number) => void;
   onChunkingStrategy: (s: ChunkingStrategy) => void;
+  /** US3: when non-null, the learner's pasted document replaces the sample lookup by `docId` entirely (FR-005). */
+  customDoc?: SampleDoc | null;
 }) {
-  const doc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
+  const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks =
     chunkingStrategy === "sentence"
       ? chunkTextBySentence(doc.text, chunkSize, overlap)

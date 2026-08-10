@@ -4,12 +4,161 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- pending `/speckit.clarify`
+**Status**: `/speckit.implement` has run (2026-08-08). All 59 tasks in
+`tasks.md` are complete, including Phase 9's regression/polish pass:
+`npm run check:all` (extensibility, disclosure, determinism,
+`check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17)
+plus `npm run build`/`tsc`/`eslint` all pass clean (T057); the
+Milestone 1 regression pass confirmed zero behavioral difference with
+Real Mode present but inactive (T056); and a real end-to-end run
+against the live OpenAI API (T058-T059, plus retroactively closing
+T023/T035/T048/T055's previously-blocked real-key scenarios) confirmed
+every acceptance scenario works against the actual provider, not just
+mocked coverage. Milestone 2's Definition of Done (roadmap.md) is met.
 
 **Input**: User description: "Opt-in Real Mode for the RAG concept module:
 bring-your-own API key for real embeddings and generation, real document
 input, executable RAG variants, and lightweight evaluation -- layered on
 top of the existing Simulated Mode without replacing it"
+
+## Clarifications
+
+### Session 2026-08-05
+
+- Q: Should this spec add an explicit accessibility requirement (FR +
+  Success Criterion) covering Real Mode's new controls (toggle, key
+  input, temperature slider, RAG-Fusion N control, HyDE count control,
+  document textarea), the same way Milestone 1's spec.md called out
+  FR-011/SC-005 for its own controls? → A: Yes -- add an explicit FR
+  plus a corresponding Success Criterion, mirroring Milestone 1's
+  precedent.
+- Q: For Real Mode's custom document input, should the spec support only
+  pasted text, or both paste and file upload (User Story 3's title said
+  "paste or upload," while FR-005 only covered pasted text)? → A: Paste
+  only -- narrow US3's title to match FR-005; file upload is out of
+  scope for this milestone.
+- Q: FR-011's recall@K evaluation doesn't say where K comes from --
+  should it reuse the pipeline's existing Top-K retrieval slider, or is
+  eval K a separate, independently-configured parameter? → A: Reuse the
+  existing Top-K slider; K is not a separate eval-only parameter.
+- Q: FR-010's "rough cost indication" doesn't say what it's based on --
+  should this milestone show a static per-provider $ estimate, or call
+  count only? → A: Call count only, no dollar figure; $ pricing is
+  Milestone 4 scope.
+- Q: FR-005 requires a "stated size limit" on pasted custom documents
+  but doesn't give a number -- what should that limit be? → A: 10,000
+  characters.
+
+### Session 2026-08-05 (checklist follow-up)
+
+- Q: Does Real Mode require exactly one provider to supply both
+  embeddings and generation, or can a learner configure independent
+  providers for each? → A: One provider, both capabilities -- a single
+  key, single configured provider throughout; a provider lacking either
+  capability isn't usable as Real Mode's configured provider.
+- Q: Should Real Mode's multi-call sequences (HyDE's hypothesis
+  generation, RAG-Fusion's per-variant embeddings) run serially or in
+  parallel? → A: Serial -- each call completes before the next starts,
+  so intermediate steps reveal progressively and mid-sequence failure
+  handling stays unambiguous.
+- Q: Should spec.md list the exact set of Real Mode API call types
+  SC-004/SC-005 must cover, and define what counts as "one call" for
+  FR-010/SC-008's estimates? → A: Yes -- FR-016 now enumerates the
+  canonical call types and defines "one call" as one HTTP request
+  regardless of batch size.
+- Q: Should spec.md state the numeric ranges/defaults for temperature,
+  RAG-Fusion's N, and HyDE's hypothesis count? → A: Yes -- temperature
+  0.0-1.0 step 0.1 default 0.3; RAG-Fusion N 2-5 step 1 default 3; HyDE
+  count 1-3 step 1 default 1.
+- Q: Should FR-008 name the exact algorithms RAG-Fusion and HyDE use in
+  Real Mode? → A: Yes -- RAG-Fusion uses Reciprocal Rank Fusion (already
+  named in the existing explanatory copy); HyDE averages its hypothesis
+  embeddings into one vector and retrieves once against that average.
+
+### Session 2026-08-05 (checklist follow-up, continued)
+
+- Q: What should happen when a learner's API key is rejected -- by the
+  local format check or a failed live call -- for correcting and
+  resubmitting it? → A: Persistent inline error, edit in place -- the
+  input retains its value, shows a distinct error per rejection type,
+  and blocks submission only until a format-valid key is entered.
+- Q: When a learner toggles Real Mode off and back on within one
+  session, should the disclaimer reappear, and are the disclosure
+  captions guaranteed to always reflect current mode? → A: Both --
+  disclaimer and captions reappear/refresh on every toggle, not just the
+  first activation.
+- Q: What specific, checkable criteria should SC-007 ("effectively
+  stable") and SC-008 ("measurably different" ranking) use? → A:
+  Byte-identical text for SC-007; at least the top-1 retrieved chunk
+  changes for SC-008.
+- Q: Should the evaluation feature add rules for expected-chunk
+  selection, zero-pairs behavior, and a pair-count bound? → A: Yes, all
+  three -- expected chunk picked from real chunks (no free text), zero
+  pairs disables the run control, and a maximum of 10 pairs is enforced.
+- Q: Should spec.md add a per-call timeout and an explicit
+  CORS-support Assumption for the configured provider? → A: Yes, both --
+  a 30-second per-call timeout (Edge Cases) and a load-bearing
+  Assumption naming direct browser-origin support as required.
+
+### Session 2026-08-06 (checklist follow-up, remaining items)
+
+- Q: For a partial multi-call failure mid-sequence (HyDE/RAG-Fusion),
+  does FR-007's retry option resume from only the failed call, or
+  restart the entire sequence? → A: Resume from the failed call only --
+  calls that already succeeded are not re-issued, since FR-008's serial
+  execution makes it unambiguous exactly which calls completed before
+  the failure.
+- Q: Beyond stating whether GraphRAG/Self-RAG/Agentic RAG are executable
+  (FR-009), what's the actual UI treatment for them in Real Mode? → A: A
+  disabled "Run" affordance with an inline explanation ("Explanatory
+  only this milestone") -- the control stays visible but inert, rather
+  than disappearing or looking identical to Simulated Mode's version.
+- Q: Does SC-003's 60-second window start at Real Mode toggle activation
+  or at key submission? → A: At key submission -- the clock starts once
+  a format-valid key is entered and the first real API call is
+  triggered, since typing/pasting time isn't something the system
+  controls.
+- Q: Does FR-011's evaluation feature need a pre-execution call-count
+  disclosure parallel to FR-010's? → A: Yes -- before running an
+  evaluation, the system shows the estimated total call count for the
+  full run (every `EvalPair` against every configuration tested), using
+  the same FR-016 call definition as FR-010.
+- Q: Is there an acceptance scenario for switching back to a sample
+  document after a custom one was entered? → A: Yes -- add it as User
+  Story 3 Acceptance Scenario 3, symmetric with the existing Edge Case
+  that requires stale sample questions to be cleared in the other
+  direction.
+- Q: Does FR-015's accessible-name/keyboard-operability requirement
+  extend to dynamic content -- the key-format-validation error and
+  FR-007's failure banners? → A: Yes -- each error MUST be
+  programmatically associated with the control it describes (or
+  announced via a live region for banners not tied to a single
+  control), not conveyed by visual styling alone.
+
+### Session 2026-08-06 (analyze follow-up)
+
+- Q: `/speckit.analyze` flagged that FR-015's control enumeration omits
+  User Story 6's evaluation controls (question input, expected-chunk
+  picker, Run control), leaving them with no stated keyboard/accessible-
+  name bar or check coverage, unlike every other story's controls --
+  should FR-015 be extended to name them? → A: Yes -- Constitution
+  Principle VII applies to every module's controls regardless of FR-015's
+  enumeration, so the enumeration should say so explicitly rather than
+  leave it implicit.
+- Q: `/speckit.analyze` flagged that spec.md's Edge Cases addresses
+  HyDE/RAG-Fusion mid-sequence partial failure explicitly, but FR-011's
+  evaluation run -- itself a multi-call sequence across up to 10 pairs
+  and multiple configurations -- has no stated behavior for one
+  `EvalPair`'s retrieval call failing partway through. Should this be
+  addressed the same way? → A: Yes -- fail closed at the failed
+  (pair, configuration) combination, exactly as FR-007/FR-008 already do
+  for HyDE/RAG-Fusion: stop issuing further eval calls, keep whatever
+  `RecallResult`s already completed successfully visible (not discarded),
+  surface a specific error naming which pair/configuration failed, and
+  offer a retry that resumes only that one combination rather than
+  re-running pairs that already scored -- the same resume-not-restart
+  principle FR-007 established, applied consistently rather than
+  reinvented for evaluation.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -40,7 +189,10 @@ before.
 2. **Given** a learner activates the Real Mode toggle, **When** no API
    key is yet configured, **Then** they see a single, clear prompt to
    supply one, with an explicit, plain-language statement of where that
-   key is sent and where it is not stored.
+   key is sent and where it is not stored, plus a disclaimer that
+   entering any key into a browser-based app carries inherent risk this
+   project cannot fully eliminate and that the learner does so at their
+   own risk.
 3. **Given** a learner has supplied a key and is in Real Mode, **When**
    they toggle back to Simulated Mode, **Then** the key is retained for
    the session (not re-requested) but no further real API calls are made
@@ -85,8 +237,8 @@ disclosed as real (the inverse disclosure of Constitution Principle II).
 
 ### User Story 3 - Use your own document and question (Priority: P2)
 
-A practitioner wants to paste or upload their own text and ask their own
-question, instead of only the two built-in sample documents.
+A practitioner wants to paste their own text and ask their own question,
+instead of only the two built-in sample documents.
 
 **Why this priority**: Necessary for Real Mode to be useful for actual
 evaluation work, but depends on User Story 2's real embeddings existing
@@ -104,10 +256,15 @@ documents.
    document text, **Then** the Document step accepts it and every
    downstream step (Chunking, Embedding, Retrieval, Generation) uses it
    in place of the sample documents.
-2. **Given** a pasted document exceeds a reasonable size limit, **When**
-   the learner submits it, **Then** the app rejects it with a clear
-   message stating the limit, rather than silently truncating it or
-   sending an oversized request to the API.
+2. **Given** a pasted document exceeds 10,000 characters, **When** the
+   learner submits it, **Then** the app rejects it with a clear message
+   stating the limit, rather than silently truncating it or sending an
+   oversized request to the API.
+3. **Given** a learner has replaced a sample document with a custom one,
+   **When** they switch back to a sample document, **Then** the custom
+   document and question are cleared and the sample document's own
+   question set is restored, rather than leaving the custom text mixed
+   with sample-document state.
 
 ---
 
@@ -180,8 +337,9 @@ question -- rather than only showing the static explanatory flow diagram.
    fusion step is inspectable rather than a black box.
 3. **Given** a variant that requires more API calls than naive RAG
    (HyDE, RAG-Fusion), **When** the learner is about to run it, **Then**
-   an estimated call count and rough cost indication is shown before the
-   calls are made, not only after.
+   an estimated call count is shown before the calls are made, not only
+   after (call count only -- no dollar estimate this milestone; see
+   FR-010).
 4. **Given** GraphRAG, Self-RAG, or Agentic RAG are selected in Real
    Mode, **When** the learner tries to run them, **Then** the app is
    explicit about which of these are actually executable in this
@@ -238,17 +396,20 @@ and see a simple recall@K number for each, side by side.
   custom document replaces the sample one.)
 - What happens when a variant's real execution produces an error partway
   through a multi-call sequence (e.g. RAG-Fusion's third of five query
-  variants fails)? (Must fail closed with a clear partial-failure
-  message, not silently proceed with incomplete results presented as
-  complete.)
+  variants fails)? (Calls within a sequence MUST run serially, one at a
+  time, not in parallel -- so "fail closed" is unambiguous: no later call
+  in the sequence has been issued yet when the failure is detected. Must
+  fail closed with a clear partial-failure message, not silently proceed
+  with incomplete results presented as complete.)
 - How does the app behave if a learner enables Real Mode on a
   network-restricted machine that can't reach the configured API at all?
   (Must degrade to a clear connectivity error, with the Simulated Mode
   fallback still available.)
-- What happens if two different API providers' key formats are both
-  accepted -- does the app validate key format before making a real
-  call, or only discover an invalid key via a failed request? (Should
-  validate obviously-malformed keys before spending a real API call.)
+- What happens if a learner submits a key that's obviously the wrong
+  shape for the single configured provider -- does the app validate key
+  format before making a real call, or only discover an invalid key via
+  a failed request? (Should validate obviously-malformed keys before
+  spending a real API call.)
 - What happens if a learner sets temperature to its lowest value
   expecting perfectly deterministic output, but the configured
   provider's API is not perfectly deterministic even at that setting?
@@ -256,6 +417,28 @@ and see a simple recall@K number for each, side by side.
   consistent," not "guaranteed identical," rather than overpromising a
   guarantee Real Mode cannot make -- this is a known real-world provider
   characteristic, not a bug to engineer around.)
+- What happens to the Embedding/Generation steps' disclosure captions
+  and the key-entry disclaimer when a learner toggles Real Mode off and
+  back on within one session? (Both MUST refresh on every toggle -- the
+  disclaimer reappears each activation and the disclosure captions are
+  always derived from current mode state, per FR-003/FR-004/FR-006 --
+  so no stale simulated-vs-real caption can survive a mode switch, the
+  same class of defect spec.md 001 found and fixed for its
+  chunking-strategy switch.)
+- How long should the app wait for a single Real Mode API call before
+  giving up? (Each call MUST time out after 30 seconds and surface
+  FR-007's error-and-fallback handling if exceeded -- consistent with
+  SC-003's 60-second budget for the first single-call embedding chart,
+  scaled per-call rather than per-sequence since HyDE/RAG-Fusion
+  sequences have no fixed total call count.)
+- What happens if one `EvalPair`'s retrieval call fails partway through
+  a multi-pair, multi-configuration evaluation run (FR-011)? (Must fail
+  closed at that exact (pair, configuration) combination -- stop issuing
+  further eval calls, keep every already-completed `RecallResult`
+  visible rather than discarding the partial run, surface a specific
+  error naming which pair/configuration failed, and offer a retry that
+  resumes only that combination, mirroring FR-007's resume-not-restart
+  retry semantics for HyDE/RAG-Fusion rather than a separate rule.)
 
 ## Requirements *(mandatory)*
 
@@ -267,60 +450,157 @@ and see a simple recall@K number for each, side by side.
   this feature's existence.
 - **FR-002**: The system MUST provide a single, clearly labeled control
   to toggle Real Mode on or off, visible from within the RAG module.
-- **FR-003**: The system MUST request an API key only at the point Real
-  Mode is first activated, MUST state in plain language where the key is
-  sent (directly from the browser to the configured provider) and where
-  it is not stored (never sent to or persisted by any server this
-  project controls, since Milestone 1-2 remain backend-free per
-  tech-stack.md), and MUST validate obviously malformed keys before
-  making a real API call.
+- **FR-003**: The system MUST request exactly one API key, for a single
+  configured provider that supplies both embeddings and generation (not
+  two independently-configured providers), only at the point Real Mode
+  is first activated within a session (not re-requested on a later
+  re-toggle within the same session, per User Story 1 Scenario 3), MUST
+  state in plain language where the key is sent (directly from the
+  browser to the configured provider) and where it is not stored (never
+  sent to or persisted by any server this project controls, since
+  Milestone 1-2 remain backend-free per tech-stack.md), MUST validate
+  obviously malformed keys before making a real API call, and MUST
+  display a disclaimer, alongside that statement, that browser-based key
+  entry carries inherent risk (e.g. a compromised browser extension with
+  page access) this project's design cannot fully eliminate, and that
+  the learner uses Real Mode at their own risk. Unlike the key itself,
+  this disclaimer MUST be shown every time Real Mode is activated within
+  a session (every toggle-on), not only the first. If a key is rejected
+  -- by the local format check or by a failed live call -- the input
+  MUST retain the entered value (not clear it), show an inline error
+  explaining why (malformed-shape and live-rejection MUST use distinct
+  wording), and block submission only until a key passing the format
+  check is entered, so the learner corrects and resubmits in place
+  rather than restarting the whole activation flow.
 - **FR-004**: The Embedding and Retrieval steps, when Real Mode is
   active, MUST use a real embeddings API response for chart coordinates
   and similarity scoring, MUST name both the provider and the
   dimensionality-reduction method used for the 2D projection in the UI,
   and MUST visibly disclose this as real, mirroring (not just removing)
   Simulated Mode's disclosure requirement from Constitution Principle II.
+  This disclosure MUST be derived from the currently active mode on
+  every render, never a value carried over from before a mode toggle, so
+  switching modes mid-session can never leave a stale simulated-vs-real
+  caption visible (Edge Cases).
 - **FR-005**: The system MUST let a learner replace the built-in sample
   document and questions with pasted custom text and a custom question in
-  Real Mode, subject to a stated size limit enforced before any API call
-  is made.
+  Real Mode, subject to a 10,000-character limit enforced before any API
+  call is made.
 - **FR-006**: The Generation step, when Real Mode is active, MUST send
   the exact displayed assembled prompt to a real model and display its
-  actual response, labeled as real.
+  actual response, labeled as real. Like FR-004, this label MUST be
+  derived from the currently active mode on every render, never carried
+  over from before a mode toggle.
 - **FR-007**: Any Real Mode API failure (embeddings, generation, or a
   variant's intermediate call) MUST surface a clear, specific error and
   MUST offer an explicit fallback to Simulated Mode -- never silently
-  substituting simulated output while implying it is real.
+  substituting simulated output while implying it is real. For a
+  failure partway through a multi-call sequence (HyDE, RAG-Fusion), the
+  retry option MUST resume from only the failed call, re-using the
+  results already obtained from calls that succeeded earlier in that
+  sequence, rather than restarting and re-incurring cost for calls that
+  already completed.
 - **FR-008**: HyDE and RAG-Fusion MUST be genuinely executable in Real
   Mode, with each variant's intermediate steps (HyDE's hypothetical
   answer; RAG-Fusion's per-variant queries and rankings before fusion)
   visibly surfaced, not hidden behind a single opaque "run" action.
+  RAG-Fusion MUST fuse its per-variant rankings via Reciprocal Rank
+  Fusion (the method already named in the Compare Variants explanatory
+  copy for this variant, so Real Mode's execution cannot silently use a
+  different method than what's taught). HyDE MUST combine its M
+  hypothesis embeddings by averaging them into a single vector and
+  retrieving once against that average, not by retrieving once per
+  hypothesis. Calls within a variant's sequence MUST run serially (one at
+  a time), not in parallel, so each intermediate step can be revealed
+  progressively as its own call completes, and so a mid-sequence failure
+  (Edge Cases) always occurs before any later call has been issued.
 - **FR-009**: For GraphRAG, Self-RAG, and Agentic RAG, the system MUST
   clearly state in the UI whether each is executable in this milestone
   or remains explanatory-only (per Assumptions below), and MUST NOT let a
   learner run one expecting real execution if it isn't implemented yet.
+  In Real Mode specifically, each of these three variants' "Run"
+  affordance MUST remain visible but disabled, with an inline
+  explanation (e.g. "Explanatory only this milestone") -- not removed
+  outright and not left visually identical to Simulated Mode's version,
+  so the learner sees explicitly why it can't be run rather than
+  wondering why the control is missing or inert.
 - **FR-010**: Before executing any variant requiring more than one
   embedding/generation call (HyDE, RAG-Fusion), the system MUST show an
-  estimated call count to the learner before making any of those calls.
-- **FR-011**: The system MUST let a learner define a small set of
-  (question, expected chunk) pairs and compute a recall@K score, with the
-  scoring method named in the UI, for naive RAG and at least one
-  executable variant, shown side by side.
+  estimated call count to the learner before making any of those calls,
+  using "call" as defined in FR-016.
+  This milestone shows call count only, with no dollar-cost estimate --
+  a static per-provider pricing table and $-denominated cost tracking
+  are Milestone 4 scope (`specs/004-real-mode-depth/spec.md`), not
+  duplicated here.
+- **FR-011**: The system MUST let a learner define up to 10 (question,
+  expected chunk) pairs -- a cap enforced to keep each evaluation run's
+  real API cost bounded and predictable -- and compute a recall@K score,
+  with the scoring method named in the UI, for naive RAG and at least
+  one executable variant, shown side by side. K MUST be the same Top-K
+  value currently set on the pipeline's Retrieval step (spec.md 001's
+  Top-K slider), not a separate eval-only parameter -- so changing Top-K
+  visibly changes the recall@K score, directly demonstrating the
+  relationship between the two. Each pair's "expected chunk" MUST be
+  selected from the active document's actual chunk list (a picker, not
+  free text), so a pair can never be silently unscoreable due to a
+  mistyped reference. Attempting to run an evaluation with zero pairs
+  defined MUST be disabled, with an explanatory message, rather than
+  silently producing an empty or broken result. Before executing an
+  evaluation run, the system MUST show an estimated total call count for
+  the full run (every `EvalPair` against every configuration tested),
+  using "call" as defined in FR-016 -- the same pre-execution disclosure
+  FR-010 requires for HyDE/RAG-Fusion, not a scope limited to variant
+  execution alone. If one `EvalPair`'s retrieval call fails partway
+  through a run, the system MUST fail closed at that exact
+  (pair, configuration) combination -- stopping further eval calls,
+  retaining every already-completed `RecallResult` rather than
+  discarding the partial run, surfacing a specific error naming the
+  failed combination, and offering a retry that resumes only that
+  combination (mirroring FR-007's resume-not-restart semantics, not a
+  separate rule for evaluation).
 - **FR-012**: The Generation step, when Real Mode is active, MUST expose
-  a learner-adjustable temperature control that is passed through to the
-  real model call, with its range and default documented in the UI.
+  a learner-adjustable temperature control ranging 0.0-1.0 in steps of
+  0.1, default 0.3, that is passed through to the real model call.
 - **FR-013**: RAG-Fusion's number of generated query variants (N) MUST be
-  a learner-adjustable parameter (not a fixed constant), with the
-  estimated-call-count disclosure from FR-010 updating live as N changes.
+  a learner-adjustable parameter ranging 2-5 in steps of 1, default 3
+  (not a fixed constant), with the estimated-call-count disclosure from
+  FR-010 updating live as N changes.
 - **FR-014**: HyDE MUST support generating more than one hypothetical
-  answer when configured to do so, with each generated hypothetical
-  answer individually visible to the learner, not only a single averaged
+  answer when configured to do so, via a learner-adjustable count ranging
+  1-3 in steps of 1, default 1, with each generated hypothetical answer
+  individually visible to the learner, not only a single averaged
   result.
+- **FR-015**: Every new Real Mode control (the Real Mode toggle, the API
+  key input, the temperature control, RAG-Fusion's N control, HyDE's
+  hypothetical-answer-count control, the custom document/question input,
+  and the evaluation feature's controls -- the `EvalPair` question input,
+  its expected-chunk picker, the pair-removal control, and the evaluation
+  Run control) MUST be operable via keyboard alone and MUST have an
+  accessible name that describes its specific effect, matching the
+  standard set by spec.md 001's FR-011 rather than introducing a lower
+  bar for Real-Mode-only controls. This extends to the dynamic content
+  those controls produce: the key-format-validation error (FR-003) MUST
+  be programmatically associated with the key input it describes, and
+  FR-007's failure banners MUST be announced via a live region, so an
+  assistive-technology user is not only aware of these errors visually.
+- **FR-016**: "A call," for FR-010's estimate and SC-004/SC-005/SC-008's
+  measurement, means one HTTP request to the configured provider,
+  regardless of how many texts are batched into it (e.g. embedding all
+  of a document's chunks in one batched request is one call, not one per
+  chunk). The canonical call types this applies to are: corpus-embed,
+  query-embed, hypothesis-embed, variant-embed, hypothesis-generate,
+  variant-query-generate, final-generate, and eval-retrieve (which itself
+  triggers no new call beyond whichever of the above the selected
+  configuration already requires). SC-004's "100% of failure paths" and
+  SC-005's "100% of intermediate execution steps" are scoped to exactly
+  this list.
 
 ### Key Entities *(include if feature involves data)*
 
-- **RealModeSession**: whether Real Mode is active, the configured
-  provider and (session-only, non-persisted) API key, scoped to the
+- **RealModeSession**: whether Real Mode is active, the single
+  configured provider (which MUST supply both embeddings and
+  generation -- not two independently-configured providers) and
+  (session-only, non-persisted) API key for that provider, scoped to the
   current browser session only.
 - **RealEmbeddingResult**: a chunk or query's real embedding vector (as
   returned by the configured provider) plus its projected 2D point and
@@ -331,7 +611,9 @@ and see a simple recall@K number for each, side by side.
   to produce them), shown to the learner rather than only the final
   result.
 - **EvalPair**: a learner-defined (question, expected chunk) pair used to
-  compute recall@K.
+  compute recall@K -- up to 10 per document, with "expected chunk"
+  selected from the active document's real chunk list, not free text
+  (FR-011).
 - **GenerationParams**: the learner-adjustable real-generation settings
   (temperature; RAG-Fusion's N; HyDE's hypothetical-answer count) that
   are passed through to real API calls and must be visible alongside
@@ -348,19 +630,22 @@ and see a simple recall@K number for each, side by side.
   inactive -- verified by re-running Milestone 1's full
   acceptance-scenario suite after this feature ships.
 - **SC-002**: A learner who has never used Real Mode is not prompted for
-  an API key, document upload, or any Real-Mode-specific input at any
-  point while using Simulated Mode.
+  an API key, custom document input, or any Real-Mode-specific input at
+  any point while using Simulated Mode.
 - **SC-003**: With a valid API key configured, a learner can go from
-  activating Real Mode to seeing a real, disclosed-as-real embedding
-  chart in under 60 seconds.
-- **SC-004**: 100% of Real Mode API failure paths (embeddings,
-  generation, variant intermediate calls) result in a specific visible
-  error and a working fallback to Simulated Mode -- verified by
-  deliberately triggering each failure path (invalid key, simulated
-  network failure, rate limit response) in testing.
+  submitting that key (the moment a format-valid key is entered and the
+  first real API call is triggered -- not from Real Mode toggle
+  activation, since typing/pasting time isn't system-controlled) to
+  seeing a real, disclosed-as-real embedding chart in under 60 seconds.
+- **SC-004**: 100% of Real Mode API failure paths, scoped to FR-016's
+  canonical call-type list, result in a specific visible error and a
+  working fallback to Simulated Mode -- verified by deliberately
+  triggering each failure path (invalid key, simulated network failure,
+  rate limit response) in testing.
 - **SC-005**: For HyDE and RAG-Fusion specifically, 100% of their
-  intermediate execution steps are visible in the UI during a real run,
-  not only the final retrieved result.
+  intermediate execution steps, scoped to FR-016's canonical call-type
+  list, are visible in the UI during a real run, not only the final
+  retrieved result.
 - **SC-006**: No API key is present in any request, log, or storage
   location controlled by this project outside the learner's own browser
   session -- verified by inspecting network requests and confirming no
@@ -369,13 +654,20 @@ and see a simple recall@K number for each, side by side.
 - **SC-007**: For at least one shipped sample question, running real
   generation twice at a high temperature setting produces two
   observably different answers, while running it twice at the lowest
-  available temperature produces effectively stable answers -- the
-  temperature parameter's effect is empirically demonstrated within a
-  session, not merely asserted.
+  available temperature produces byte-identical text -- the strict,
+  checkable bar for "effectively stable" -- the temperature parameter's
+  effect is empirically demonstrated within a session, not merely
+  asserted.
 - **SC-008**: For at least one shipped sample question, changing
-  RAG-Fusion's query-variant count (N) produces a measurably different
-  fused ranking, and the estimated-call-count shown to the learner
-  before execution matches the actual number of calls made.
+  RAG-Fusion's query-variant count (N) changes at least the top-1
+  (highest-ranked) retrieved chunk in the fused ranking -- the checkable
+  bar for "measurably different" -- and the estimated-call-count shown
+  to the learner before execution matches the actual number of calls
+  made.
+- **SC-009**: Every new Real Mode control (FR-015) is reachable and
+  operable via keyboard alone and exposes an accessible name -- verified
+  by the same class of automated check used for spec.md 001's SC-005,
+  extended to cover Real Mode's controls.
 
 ## Assumptions
 
@@ -385,6 +677,18 @@ and see a simple recall@K number for each, side by side.
   scope. A backend proxy (e.g. to avoid exposing keys in client-side
   network traffic) is explicitly out of scope for this milestone and
   would need its own spec if a concrete need for it emerges later.
+- This entire client-only architecture depends on the configured
+  provider supporting direct browser-origin (CORS) requests -- this is a
+  load-bearing assumption, not an incidental detail; a provider that
+  doesn't support this isn't usable as Real Mode's configured provider
+  without the backend proxy explicitly ruled out above, so any future
+  provider swap MUST be checked against this before being adopted. This
+  extends spec.md 001's evergreen-browser Assumption (written before any
+  real network call existed) to specifically cover cross-origin `fetch`
+  behavior: the learner's browser itself must permit the cross-site
+  request to the provider's API (some browsers apply stricter
+  cross-site request handling than others), not just the provider's
+  server accepting it.
 - Of the six variants in Compare Variants, only naive RAG, HyDE, and
   RAG-Fusion are made genuinely executable in this milestone. GraphRAG
   (requires offline graph construction), Self-RAG (requires a
