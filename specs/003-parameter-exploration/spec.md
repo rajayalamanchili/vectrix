@@ -4,11 +4,21 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- pending `/speckit.clarify`
+**Status**: Draft -- clarified 2026-08-10, pending `/speckit.plan`
 
 **Input**: User description: "Parameter sweep curves, shareable
 permalinks encoding configuration state, and known-failure presets for
 the RAG module"
+
+## Clarifications
+
+### Session 2026-08-10
+
+- Q: For the chunk-size sweep, what range and how many points should it cover -- a fixed range/step baked into the app, or one the learner can adjust? → A: Fixed range = existing chunk-size slider's min/max (spec 001), fixed point count (8-10 evenly spaced)
+- Q: If a learner starts a second sweep while one is still running, should the new sweep cancel and replace the running one, or queue behind it? → A: Cancel the running sweep immediately, start the new one
+- Q: Is the sweep's output metric fixed (e.g. always top-1 similarity score), or can the learner choose which metric the curve plots? → A: Fixed to top-1 similarity score only, for this milestone
+- Q: Should this milestone's sweep control cover chunk size only, or also other parameters like similarity threshold or Top-K? → A: Chunk size only this milestone; architecture may be generic, but only one sweep target ships
+- Q: How must a learner using only a keyboard select and activate an individual point on the sweep curve to jump to that configuration? → A: Each curve point is a focusable, individually-tabbable element, Enter/Space activates
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -49,9 +59,11 @@ values, with no manual re-running required per point.
    uninteresting result.
 4. **Given** Real Mode is active, **When** the learner activates a sweep
    that would require many real API calls, **Then** an estimated call
-   count and cost are shown and explicit confirmation is required before
-   any of those calls are made, following the same disclosure pattern as
-   Real Mode's variant execution (spec 002 FR-010).
+   count is shown and explicit confirmation is required before any of
+   those calls are made, following the same disclosure pattern -- and
+   the same call-count-only scope, with no dollar figure (deferred to
+   Milestone 4's cost/call ledger per roadmap.md) -- as Real Mode's
+   variant execution (spec 002 FR-010).
 5. **Given** Simulated Mode is active, **When** a sweep runs, **Then** it
    completes with no real API calls and no confirmation step, since no
    cost or determinism concern applies (Constitution Principle V already
@@ -125,7 +137,8 @@ described failure, with an explanation naming the causing parameter.
    failure from an unexplained broken state.
 3. **Given** a learner wants to leave a preset, **When** they activate a
    single "reset to defaults" control, **Then** all parameters return to
-   sensible defaults from any preset-loaded state.
+   sensible defaults from any preset-loaded state or mid-sweep state
+   (matching FR-010's full scope).
 
 ---
 
@@ -138,7 +151,8 @@ described failure, with an explanation naming the causing parameter.
   merely at the sweep's starting value.)
 - What happens if two different parameters are both mid-sweep at once?
   (Only one sweep should be active at a time; starting a second sweep
-  should cancel or queue behind the first, not silently corrupt both.)
+  MUST cancel the running one immediately and start the new one, not
+  queue behind it or silently corrupt both.)
 - What happens if a permalink is generated, then the underlying sample
   document set changes in a future release (a document is renamed or
   removed)? (Opening an old permalink referencing a removed document
@@ -158,16 +172,27 @@ described failure, with an explanation naming the causing parameter.
 ### Functional Requirements
 
 - **FR-001**: The system MUST provide a sweep control for at least chunk
-  size (Simulated Mode) that re-runs the pipeline across a defined range
-  of values and computes a chosen output metric at each step without
-  further learner input per step.
+  size that re-runs the pipeline across a defined range of values and
+  computes a chosen output metric at each step without further learner
+  input per step. This control MUST operate in both Simulated Mode
+  (runs immediately, no confirmation) and Real Mode (gated by FR-003's
+  cost-confirmation requirement before any real call is made) -- it is
+  the same control in both modes, not a Simulated-Mode-only feature.
+  The chunk-size sweep's range is fixed to the existing chunk-size
+  slider's min/max (spec 001), sampled at a fixed 9 evenly spaced
+  points -- not learner-adjustable.
 - **FR-002**: Sweep results MUST render as a curve (parameter value vs.
   metric), with every point clickable to load that exact configuration's
-  full pipeline state.
+  full pipeline state. The metric plotted is fixed to top-1 similarity
+  score for this milestone -- not learner-selectable. Each point MUST be
+  an individually focusable, keyboard-activatable element (Tab to move
+  between points, Enter/Space to activate), per Constitution Principle
+  VII -- not mouse-only.
 - **FR-003**: When a sweep is run in Real Mode and would require more
   than one real API call, the system MUST show an estimated call count
-  and cost and require explicit confirmation before any of those calls
-  are made.
+  (call-count only, no dollar figure -- deferred to Milestone 4's
+  cost/call ledger per roadmap.md, matching spec 002 FR-010's own scope)
+  and require explicit confirmation before any of those calls are made.
 - **FR-004**: A sweep producing a flat (low-sensitivity) curve MUST be
   presented as a valid, clearly labeled outcome, not as an error or an
   empty state.
@@ -194,13 +219,18 @@ described failure, with an explanation naming the causing parameter.
 
 ### Key Entities *(include if feature involves data)*
 
-- **SweepResult**: an ordered set of (parameter value, output metric)
-  pairs produced by running the pipeline across a defined range, plus the
-  metric definition used.
-- **PermalinkState**: the encodable subset of pipeline configuration
+- **SweepPoint** / **SweepState**: `SweepPoint` is one (chunk size,
+  clamped overlap, top-1 similarity score, status) tuple; `SweepState` is
+  the ordered set of `SweepPoint`s for one sweep run plus a cancellation
+  token. For the chunk-size sweep, the range is fixed to the existing
+  chunk-size slider's min/max at 9 evenly spaced points (not
+  learner-configurable) -- see data-model.md.
+- **PermalinkParams**: the encodable subset of pipeline configuration
   (mode, document selection, chunking/retrieval/generation parameters)
   that a permalink carries -- explicitly excluding API keys and custom
-  pasted document text.
+  pasted document text. See data-model.md's `PermalinkParams` table and
+  contracts/permalink-contract.md's `PermalinkSourceState`/
+  `ParsedPermalink` types for the exact field-level shape.
 - **FailurePreset**: a named, curated (parameter configuration, sample
   document, sample question, explanation) tuple that reliably reproduces
   a specific, labeled failure mode.
@@ -223,7 +253,7 @@ described failure, with an explanation naming the causing parameter.
   produce its labeled failure -- not merely to load static numbers that
   may have drifted out of sync with pipeline changes over time.
 - **SC-005**: 100% of Real Mode sweeps requiring more than one real API
-  call show a cost/call estimate and require confirmation before any
+  call show a call-count estimate and require confirmation before any
   call is made -- verified by test, not by inspection alone.
 
 ## Assumptions
@@ -232,6 +262,10 @@ described failure, with an explanation naming the causing parameter.
   cost-confirmation requirement in FR-003), not deferred to a later
   milestone -- the teaching value of seeing a real fidelity curve is
   judged high enough to justify the added cost-disclosure complexity now.
+- Chunk size is the only sweepable parameter this milestone; the sweep
+  architecture may be built generically, but similarity threshold,
+  Top-K, and other parameters are not exposed as sweep targets until a
+  future milestone.
 - Permalinks cover all parameters except custom pasted Real Mode
   documents (excluded per FR-007) and API keys (excluded per FR-006,
   with no exception).
