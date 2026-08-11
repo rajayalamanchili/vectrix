@@ -7,9 +7,13 @@ import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { Slider } from "@/components/ui/Slider";
 import { ErrorBanner } from "../../realMode/ErrorBanner";
-import { createOpenAICompatibleProvider } from "../../realMode/openaiCompatibleProvider";
 import { projectTo2D } from "../../realMode/pca";
 import type { RealModeError, RealModeSession } from "../../realMode/types";
+import { createTrackedProvider } from "../../costLedger/trackedProvider";
+import { useCostGate } from "../../costLedger/useCostGate";
+import { CostWarningBanner } from "../../costLedger/CostWarningBanner";
+import { openaiPricing } from "../../costLedger/pricing";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../../costLedger/types";
 import {
   runSimulatedSweep,
   chunkTextsForSweepPoint,
@@ -47,6 +51,8 @@ export function RetrievalStep({
   onRealModeChange,
   customDoc,
   onSweepJump,
+  costLedger,
+  onCostLedgerAppend,
 }: {
   docId: string;
   chunkSize: number;
@@ -65,6 +71,9 @@ export function RetrievalStep({
   customDoc?: SampleDoc | null;
   /** 003-parameter-exploration US1: jumps the pipeline to a sweep point's exact chunk size (contracts/sweep-contract.md). */
   onSweepJump: (chunkSize: number) => void;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
 }) {
   const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks = useMemo(
@@ -101,17 +110,33 @@ export function RetrievalStep({
 
   const corpusStageError = realMode?.error?.stage === CORPUS_STAGE ? realMode.error : null;
   const queryStageError = realMode?.error?.stage === QUERY_STAGE ? realMode.error : null;
+
+  // FR-007: re-evaluated fresh per distinct call (keyed on exactly the
+  // inputs that would trigger a new embed call) -- crossing the
+  // threshold blocks that one call until the learner explicitly clicks
+  // "Proceed anyway" for it (research.md's warning-threshold decision).
+  const corpusCallKey = JSON.stringify([docId, customDoc?.text, chunkSize, overlap, chunkingStrategy, corpusRetryToken]);
+  const corpusCostGate = useCostGate(costLedger, corpusCallKey);
+  const queryCallKey = JSON.stringify([activeQuery, queryRetryToken]);
+  const queryCostGate = useCostGate(costLedger, queryCallKey);
+  const corpusBlocked = isReal && corpusCostGate.blocked;
+  const queryBlocked = isReal && queryCostGate.blocked;
+
   // Derived, not separate booleans: "in flight" is exactly "real mode is
-  // on, we don't have that call's result yet, and it didn't just error."
-  const corpusLoading = isReal && !realCorpusVectors && !corpusStageError;
-  const queryLoading = isReal && !realQueryVector && !queryStageError;
+  // on, we don't have that call's result yet, it didn't just error, and
+  // it isn't waiting on the cost-warning gate."
+  const corpusLoading = isReal && !realCorpusVectors && !corpusStageError && !corpusBlocked;
+  const queryLoading = isReal && !realQueryVector && !queryStageError && !queryBlocked;
 
   useEffect(() => {
-    if (!isReal || !realMode || !realMode.apiKey) {
+    if (!isReal || !realMode || !realMode.apiKey || corpusBlocked) {
       return;
     }
     let cancelled = false;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     provider
       .embedBatch(chunks.map((c) => c.text))
       .then((vectors) => {
@@ -130,14 +155,17 @@ export function RetrievalStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, corpusRetryToken]);
+  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, corpusRetryToken, corpusBlocked]);
 
   useEffect(() => {
-    if (!isReal || !realMode || !realMode.apiKey) {
+    if (!isReal || !realMode || !realMode.apiKey || queryBlocked) {
       return;
     }
     let cancelled = false;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     provider
       .embedBatch([activeQuery])
       .then(([vector]) => {
@@ -156,7 +184,7 @@ export function RetrievalStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, activeQuery, queryRetryToken]);
+  }, [isReal, activeQuery, queryRetryToken, queryBlocked]);
 
   // Corpus and query MUST be projected together in one PCA call so they
   // land in the same 2D coordinate system -- projecting them separately
@@ -210,13 +238,16 @@ export function RetrievalStep({
   }
 
   // Loading vs. genuinely unavailable (errored, nothing to retry
-  // automatically) -- both are distinct from "ready," which covers
-  // Simulated Mode (always ready) and Real Mode once both calls succeed.
-  const retrievalStatus: "loading" | "unavailable" | "ready" = dataReady
+  // automatically) vs. cost-blocked (FR-007's warning gate) -- all
+  // distinct from "ready," which covers Simulated Mode (always ready)
+  // and Real Mode once both calls succeed.
+  const retrievalStatus: "loading" | "unavailable" | "cost-blocked" | "ready" = dataReady
     ? "ready"
-    : corpusStageError || queryStageError
-      ? "unavailable"
-      : "loading";
+    : corpusBlocked || queryBlocked
+      ? "cost-blocked"
+      : corpusStageError || queryStageError
+        ? "unavailable"
+        : "loading";
 
   const points: StarPoint[] = chunks.map((c, i) => {
     const isTop = topResults.some((r) => r.chunk.id === c.id);
@@ -284,11 +315,17 @@ export function RetrievalStep({
     }
   }
 
+  const sweepCallKey = JSON.stringify([doc.id, activeQuery, overlap, chunkingStrategy, sweep.token]);
+  const sweepCostGate = useCostGate(costLedger, sweepCallKey);
+
   async function handleConfirmRealSweep() {
     if (!realMode?.apiKey) return;
     const token = sweepTokenRef.current;
     setSweep((s) => ({ ...s, status: "running" }));
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
 
     let queryVector: number[];
     try {
@@ -375,7 +412,24 @@ export function RetrievalStep({
             />
           </div>
           <div className="mt-4">
-            {retrievalStatus === "loading" ? (
+            {retrievalStatus === "cost-blocked" ? (
+              <div className="space-y-2">
+                {corpusBlocked && (
+                  <CostWarningBanner
+                    totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+                    thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+                    onProceedAnyway={corpusCostGate.proceed}
+                  />
+                )}
+                {queryBlocked && (
+                  <CostWarningBanner
+                    totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+                    thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+                    onProceedAnyway={queryCostGate.proceed}
+                  />
+                )}
+              </div>
+            ) : retrievalStatus === "loading" ? (
               <p role="status" className="p-6 text-xs italic text-ink-500">
                 {corpusLoading
                   ? `Embedding corpus via ${realMode?.provider.label}...`
@@ -397,7 +451,11 @@ export function RetrievalStep({
           <h2 className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
             Retrieved, ranked by similarity
           </h2>
-          {retrievalStatus === "loading" ? (
+          {retrievalStatus === "cost-blocked" ? (
+            <p role="status" className="text-xs text-ink-500 italic">
+              Waiting on the cost warning above to be confirmed before ranking.
+            </p>
+          ) : retrievalStatus === "loading" ? (
             <p role="status" className="text-xs text-ink-500 italic">
               Waiting on real embeddings before ranking...
             </p>
@@ -439,11 +497,22 @@ export function RetrievalStep({
               Sweep chunk size (9 points)
             </button>
           )}
-          {sweep.status === "awaiting-confirmation" && (
+          {sweep.status === "awaiting-confirmation" && sweepCostGate.blocked && (
+            <CostWarningBanner
+              totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+              thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+              onProceedAnyway={sweepCostGate.proceed}
+            />
+          )}
+          {sweep.status === "awaiting-confirmation" && !sweepCostGate.blocked && (
             <div>
               <p className="mb-2 text-xs text-ink-500">
                 Estimated calls for this sweep:{" "}
-                <span className="font-mono">{sweepCallEstimate(generateSweepChunkSizes().length)}</span>
+                <span className="font-mono">{sweepCallEstimate(generateSweepChunkSizes().length)}</span> (~$
+                <span className="font-mono">
+                  {(sweepCallEstimate(generateSweepChunkSizes().length) * openaiPricing.embedCallUsd).toFixed(5)}
+                </span>
+                , {openaiPricing.label})
               </p>
               <button
                 type="button"

@@ -3,13 +3,17 @@
 import { useState } from "react";
 import { PipelineWalkthrough } from "./pipeline/PipelineWalkthrough";
 import { VariantsComparison } from "./variants/VariantsComparison";
+import { CompareSimulatedVsReal } from "./compareReal/CompareSimulatedVsReal";
 import { RealModeToggle } from "./realMode/RealModeToggle";
 import { openaiProviderConfig } from "./realMode/providerConfigs";
+import { CostLedgerDisplay } from "./costLedger/CostLedgerDisplay";
+import { DEFAULT_WARNING_THRESHOLD_USD, type CostLedgerEntry, type SessionCostLedger } from "./costLedger/types";
 import type { GenerationParams, RealModeSession } from "./realMode/types";
 
 const TABS = [
   { id: "pipeline", label: "Pipeline Walkthrough" },
   { id: "variants", label: "Compare Variants" },
+  { id: "compare-real", label: "Compare Simulated vs Real" },
 ] as const;
 
 // Real Mode is inactive by default -- every downstream prop threading
@@ -29,10 +33,36 @@ const DEFAULT_GENERATION_PARAMS: GenerationParams = {
   hydeCount: 1,
 };
 
+// US2 (004-real-mode-depth): the session-wide cost/call ledger, in
+// memory only (research.md -- mirrors the API key's own reset-on-
+// refresh precedent, never sessionStorage/localStorage).
+const EMPTY_COST_LEDGER: SessionCostLedger = {
+  entries: [],
+  warningThresholdUsd: DEFAULT_WARNING_THRESHOLD_USD,
+  pendingResetPrompt: false,
+};
+
 export function RagConcept() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("pipeline");
   const [realMode, setRealMode] = useState<RealModeSession>(INACTIVE_REAL_MODE_SESSION);
   const [generationParams, setGenerationParams] = useState<GenerationParams>(DEFAULT_GENERATION_PARAMS);
+  const [costLedger, setCostLedger] = useState<SessionCostLedger>(EMPTY_COST_LEDGER);
+
+  function handleCostLedgerAppend(entry: CostLedgerEntry) {
+    setCostLedger((l) => ({ ...l, entries: [...l.entries, entry] }));
+  }
+  function handleLedgerResetPrompt() {
+    setCostLedger((l) => ({ ...l, pendingResetPrompt: true }));
+  }
+  function handleLedgerThresholdChange(v: number) {
+    setCostLedger((l) => ({ ...l, warningThresholdUsd: v }));
+  }
+  function handleLedgerKeepAccumulating() {
+    setCostLedger((l) => ({ ...l, pendingResetPrompt: false }));
+  }
+  function handleLedgerResetTotal() {
+    setCostLedger((l) => ({ ...l, entries: [], pendingResetPrompt: false }));
+  }
   // generationParams/setGenerationParams are lifted here (T008); the
   // temperature control threads them to GenerationStep starting in US4.
   // VariantsComparison's HyDE/RAG-Fusion N/hydeCount controls (US5) will
@@ -77,6 +107,13 @@ export function RagConcept() {
 
       <RealModeToggle realMode={realMode} onRealModeChange={setRealMode} />
 
+      <CostLedgerDisplay
+        ledger={costLedger}
+        onThresholdChange={handleLedgerThresholdChange}
+        onKeepAccumulating={handleLedgerKeepAccumulating}
+        onResetTotal={handleLedgerResetTotal}
+      />
+
       {tab === "pipeline" && (
         <PipelineWalkthrough
           realMode={realMode}
@@ -85,6 +122,9 @@ export function RagConcept() {
           onGenerationParamsChange={setGenerationParams}
           topK={topK}
           onTopKChange={setTopK}
+          costLedger={costLedger}
+          onCostLedgerAppend={handleCostLedgerAppend}
+          onLedgerResetPrompt={handleLedgerResetPrompt}
         />
       )}
       {tab === "variants" && (
@@ -95,6 +135,20 @@ export function RagConcept() {
           onGenerationParamsChange={setGenerationParams}
           topK={topK}
           onTopKChange={setTopK}
+          costLedger={costLedger}
+          onCostLedgerAppend={handleCostLedgerAppend}
+          onLedgerResetPrompt={handleLedgerResetPrompt}
+        />
+      )}
+      {tab === "compare-real" && (
+        <CompareSimulatedVsReal
+          realMode={realMode}
+          onRealModeChange={setRealMode}
+          generationParams={generationParams}
+          topK={topK}
+          costLedger={costLedger}
+          onCostLedgerAppend={handleCostLedgerAppend}
+          onLedgerResetPrompt={handleLedgerResetPrompt}
         />
       )}
     </div>

@@ -6,9 +6,12 @@ import { embed } from "../../lib/mockEmbedding";
 import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { ErrorBanner } from "../../realMode/ErrorBanner";
-import { createOpenAICompatibleProvider } from "../../realMode/openaiCompatibleProvider";
 import { projectTo2D } from "../../realMode/pca";
 import type { RealEmbeddingResult, RealModeError, RealModeSession } from "../../realMode/types";
+import { createTrackedProvider } from "../../costLedger/trackedProvider";
+import { useCostGate } from "../../costLedger/useCostGate";
+import { CostWarningBanner } from "../../costLedger/CostWarningBanner";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../../costLedger/types";
 
 /** FR-016 canonical call type for this step's one real call. */
 const STAGE = "corpus-embed";
@@ -21,6 +24,8 @@ export function EmbeddingStep({
   realMode,
   onRealModeChange,
   customDoc,
+  costLedger,
+  onCostLedgerAppend,
 }: {
   docId: string;
   chunkSize: number;
@@ -30,6 +35,9 @@ export function EmbeddingStep({
   onRealModeChange?: (next: RealModeSession) => void;
   /** US3: when non-null, the learner's pasted document replaces the sample lookup by `docId` entirely (FR-005). */
   customDoc?: SampleDoc | null;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
 }) {
   const doc = customDoc ?? sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
   const chunks = useMemo(
@@ -47,16 +55,28 @@ export function EmbeddingStep({
   // Only this step's own call type -- a query-embed/generation failure
   // surfaced elsewhere must not make this step show a stale banner.
   const stageError = realMode?.error?.stage === STAGE ? realMode.error : null;
+
+  // FR-007: re-evaluated fresh per distinct call (research.md's
+  // warning-threshold decision), keyed on exactly the inputs that would
+  // trigger a new embed call.
+  const callKey = JSON.stringify([docId, customDoc?.text, chunkSize, overlap, chunkingStrategy, retryToken]);
+  const costGate = useCostGate(costLedger, callKey);
+  const blocked = isReal && costGate.blocked;
+
   // Derived, not a separate boolean: "in flight" is exactly "real mode is
-  // on, we don't have a result yet, and the last attempt didn't error."
-  const loading = isReal && !realResults && !stageError;
+  // on, we don't have a result yet, the last attempt didn't error, and
+  // it isn't waiting on the cost-warning gate."
+  const loading = isReal && !realResults && !stageError && !blocked;
 
   useEffect(() => {
-    if (!isReal || !realMode || !realMode.apiKey) {
+    if (!isReal || !realMode || !realMode.apiKey || blocked) {
       return;
     }
     let cancelled = false;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     provider
       .embedBatch(chunks.map((c) => c.text))
       .then((vectors) => {
@@ -83,7 +103,7 @@ export function EmbeddingStep({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, retryToken]);
+  }, [isReal, docId, customDoc, chunkSize, overlap, chunkingStrategy, retryToken, blocked]);
 
   const simulatedPoints: StarPoint[] = useMemo(
     () =>
@@ -119,7 +139,13 @@ export function EmbeddingStep({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
       <Panel className="p-5">
-        {loading ? (
+        {blocked ? (
+          <CostWarningBanner
+            totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+            thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+            onProceedAnyway={costGate.proceed}
+          />
+        ) : loading ? (
           <p role="status" className="p-6 text-xs italic text-ink-500">
             Embedding {chunks.length} chunk{chunks.length === 1 ? "" : "s"} via{" "}
             {realMode?.provider.label}...

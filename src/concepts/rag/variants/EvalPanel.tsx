@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Panel } from "@/components/ui/Panel";
 import { Slider } from "@/components/ui/Slider";
 import { ErrorBanner } from "../realMode/ErrorBanner";
-import { createOpenAICompatibleProvider } from "../realMode/openaiCompatibleProvider";
 import {
   averageVectors,
   buildHypothesisPrompt,
@@ -14,6 +13,12 @@ import {
 } from "../realMode/variantExecution";
 import { evalCallEstimate } from "../realMode/callEstimate";
 import { ragVariants } from "./variantData";
+import { createTrackedProvider } from "../costLedger/trackedProvider";
+import { useCostGate } from "../costLedger/useCostGate";
+import { CostWarningBanner } from "../costLedger/CostWarningBanner";
+import { costEstimateUsd } from "../costLedger/costEstimate";
+import { openaiPricing } from "../costLedger/pricing";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../costLedger/types";
 import type { Chunk } from "../lib/sampleDocs";
 import type { RealModeProvider } from "../realMode/types";
 import type {
@@ -95,6 +100,8 @@ export function EvalPanel({
   realMode,
   onRealModeChange,
   generationParams,
+  costLedger,
+  onCostLedgerAppend,
 }: {
   chunks: Chunk[];
   topK: number;
@@ -102,6 +109,9 @@ export function EvalPanel({
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
   generationParams?: GenerationParams;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
 }) {
   const [evalPairs, setEvalPairs] = useState<EvalPair[]>([]);
   const [nextPairNumber, setNextPairNumber] = useState(1);
@@ -116,6 +126,12 @@ export function EvalPanel({
   const temperature = generationParams?.temperature ?? 0.3;
   const hydeCount = generationParams?.hydeCount ?? 1;
   const fusionN = generationParams?.fusionN ?? 3;
+
+  // FR-007: re-evaluated fresh per distinct evaluation run (research.md's
+  // warning-threshold decision), keyed on the pair set and parameters
+  // that determine this run's exact call sequence.
+  const runCallKey = JSON.stringify([evalPairs.map((p) => p.id), topK, hydeCount, fusionN]);
+  const runCostGate = useCostGate(costLedger, runCallKey);
 
   function handleAddPair() {
     if (evalPairs.length >= MAX_EVAL_PAIRS) return;
@@ -152,7 +168,10 @@ export function EvalPanel({
 
   async function runEval(startFresh: boolean) {
     if (!realMode?.apiKey || evalPairs.length === 0) return;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     let states = startFresh ? emptyConfigStates() : configStates;
     setConfigStates(states);
     setError(null);
@@ -206,6 +225,12 @@ export function EvalPanel({
   }
 
   const estimate = evalCallEstimate(evalPairs.length, EVAL_CONFIG_IDS, { hydeCount, fusionN });
+  // FR-008: same per-configuration $/call breakdown costEstimate.ts uses
+  // elsewhere, summed the same way evalCallEstimate() sums call counts.
+  const estimateUsd = EVAL_CONFIG_IDS.reduce(
+    (sum, id) => sum + evalPairs.length * costEstimateUsd(id, { hydeCount, fusionN }, openaiPricing),
+    0,
+  );
   const hasAnyScored = EVAL_CONFIG_IDS.some((id) => configStates[id].scorePerPair.length > 0);
 
   return (
@@ -306,22 +331,34 @@ export function EvalPanel({
         </p>
       ) : (
         <p className="mb-2 text-xs text-ink-500">
-          Estimated calls for this evaluation run: <span className="font-mono">{estimate}</span>
+          Estimated calls for this evaluation run: <span className="font-mono">{estimate}</span> (~$
+          <span className="font-mono">{estimateUsd.toFixed(5)}</span>)
         </p>
       )}
-      {/* FR-011: disabled with zero pairs, per the same visible-but-inert
-          pattern FR-009 uses for GraphRAG/Self-RAG/Agentic RAG's Run
-          control -- stays in the DOM (and therefore check:a11y's
-          disabled-control Tab-removal rule applies to it) rather than
-          disappearing. */}
-      <button
-        type="button"
-        onClick={() => runEval(true)}
-        disabled={evalPairs.length === 0 || overallStatus === "running"}
-        className="rounded bg-query-amber/20 px-3 py-2 text-xs font-medium text-query-amber transition-colors hover:bg-query-amber/30 disabled:opacity-30"
-      >
-        {overallStatus === "running" ? "Running evaluation..." : "Run evaluation"}
-      </button>
+      {evalPairs.length > 0 && runCostGate.blocked ? (
+        <CostWarningBanner
+          totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+          thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+          onProceedAnyway={() => {
+            runCostGate.proceed();
+            runEval(true);
+          }}
+        />
+      ) : (
+        /* FR-011: disabled with zero pairs, per the same visible-but-inert
+           pattern FR-009 uses for GraphRAG/Self-RAG/Agentic RAG's Run
+           control -- stays in the DOM (and therefore check:a11y's
+           disabled-control Tab-removal rule applies to it) rather than
+           disappearing. */
+        <button
+          type="button"
+          onClick={() => runEval(true)}
+          disabled={evalPairs.length === 0 || overallStatus === "running"}
+          className="rounded bg-query-amber/20 px-3 py-2 text-xs font-medium text-query-amber transition-colors hover:bg-query-amber/30 disabled:opacity-30"
+        >
+          {overallStatus === "running" ? "Running evaluation..." : "Run evaluation"}
+        </button>
+      )}
 
       {hasAnyScored && (
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3" data-real-disclosure="true">

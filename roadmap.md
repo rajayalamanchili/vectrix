@@ -239,8 +239,35 @@ custom documents.
 
 ## Milestone 4: Real Mode Depth -- Comparison & Cost Tracking
 **Spec**: `specs/004-real-mode-depth/spec.md`
-**Status**: Spec drafted, pending `/speckit.clarify` and `/speckit.plan` --
-do not begin until Milestone 3's Definition of Done is met.
+**Status**: `/speckit.implement` has run (2026-08-11). All 35 tasks in
+`tasks.md` are complete -- US1 (Compare Simulated vs Real) landed first,
+US2 (the cost/call ledger) completed this pass. `npm run check:all`
+(extensibility, disclosure, determinism, `check:a11y` 59/59,
+`check:key-isolation`, `check:real-mode` 17/17,
+`check:parameter-exploration` 6/6, `check:real-mode-depth`
+[`cost-ledger-sum.ts` + 10 Playwright tests + 11 a11y tests]) passes
+clean, alongside `npm run build` and `npx eslint .`. SC-002's hard gate
+(`scripts/checks/cost-ledger-sum.ts`) verifies, against a live fixture
+run, that the ledger's summed total exactly matches `costEstimateUsd()`'s
+own pre-call estimate for naive/HyDE/RAG-Fusion, and that a call
+rejecting partway through a sequence adds nothing to the total. The
+Milestone 1-3 regression pass found zero behavioral difference now that
+every pre-existing real-call site (`RetrievalStep`, `EmbeddingStep`,
+`GenerationStep`, `VariantsComparison`, `EvalPanel`) routes its provider
+construction through `createTrackedProvider`. Building and verifying the
+ledger surfaced one genuine, pre-existing defect this milestone's own
+work exposed rather than introduced: `CompareSimulatedVsReal.tsx`'s Real
+half (built under US1) never issues a final-answer generate call, since
+this view compares retrieval rankings only (contracts/comparison-
+contract.md's Non-goals) -- its pre-call call-count/cost estimate had
+been silently overcounting by exactly one generate call for every
+configuration, caught only once SC-002's exact-match verification made
+the drift impossible to miss; fixed as part of this pass, alongside
+adding the dollar-estimate figure cost-ledger-contract.md's own example
+calls for ("Estimated calls for this run: 4 (~$0.0004)") to three sites
+(`VariantsComparison.tsx`, `EvalPanel.tsx`, the chunk-size sweep) that
+had shipped with a call count only, no dollar figure. Milestone 4's
+Definition of Done is met.
 
 **Scope**: A side-by-side Simulated-vs-Real comparison view for the same
 document and question, with each chunk's rank in both modes directly
@@ -249,13 +276,20 @@ entire Real Mode session rather than resetting per action, including a
 learner-configurable warning threshold.
 
 **Definition of done**:
-- All acceptance scenarios in `specs/004-real-mode-depth/spec.md` pass.
+- All acceptance scenarios in `specs/004-real-mode-depth/spec.md`
+  pass -- **verified** (2026-08-11) via `tests/real-mode-depth/`'s three
+  Playwright specs (10 tests) plus `tests/a11y/compare-simulated-vs-real
+  .spec.ts` and `tests/a11y/cost-ledger.spec.ts` (11 tests), all mocked
+  at the HTTP layer, no real API key in CI.
 - SC-002 (the cumulative ledger's displayed total is verified, by
   automated check, to match the sum of individual actions' own
   estimates) is a hard gate -- a cost tracker that silently drifts from
-  reality is actively worse than no tracker.
+  reality is actively worse than no tracker. **Verified**:
+  `scripts/checks/cost-ledger-sum.ts` passes, and this exact check is
+  what caught the `CompareSimulatedVsReal.tsx` estimate-drift defect
+  described above before it could ship silently.
 - Milestones 1-3's full acceptance-scenario suites still pass
-  (regression check).
+  (regression check) -- **verified**, zero behavioral difference found.
 
 **Explicitly not included**: live pricing lookups from provider APIs
 (static pricing table only); real execution of GraphRAG/Self-RAG/Agentic
@@ -322,12 +356,31 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.9.0 -- 2026-08-10, **Milestone 3's Definition of Done is
-fully met -- all 31 of 31 tasks in `specs/003-parameter-exploration/
-tasks.md` are complete.** `npm run check:all` (extensibility, disclosure,
+**Version**: 1.10.0 -- 2026-08-11, **Milestone 4's Definition of Done is
+fully met -- all 35 of 35 tasks in `specs/004-real-mode-depth/tasks.md`
+are complete.** `npm run check:all` (extensibility, disclosure,
+determinism, `check:a11y` 59/59, `check:key-isolation`, `check:real-mode`
+17/17, `check:parameter-exploration` 6/6, `check:real-mode-depth`) and
+`npm run build`/`tsc`/`eslint` all pass clean. Both user stories are
+built and independently verified: the "Compare Simulated vs Real" view
+(US1), and the session-wide cost/call ledger with a learner-configurable
+$1.00-default warning threshold (US2), whose displayed total is verified
+by `scripts/checks/cost-ledger-sum.ts` to exactly match
+`costEstimateUsd()`'s own pre-call estimate against a live fixture run
+(SC-002's hard gate). That exact-match check caught a genuine,
+previously-shipped defect: `CompareSimulatedVsReal.tsx`'s Real half never
+issues a final-answer generate call (it compares retrieval rankings
+only), so its own pre-call estimate had been silently overcounting by
+one generate call per configuration -- fixed as part of this pass. The
+Milestone 1-3 regression pass found zero behavioral difference now that
+every pre-existing real-call site routes through `createTrackedProvider`.
+
+Supersedes 1.9.0 (2026-08-10, Milestone 3's Definition of Done fully
+met -- all 31 of 31 tasks in `specs/003-parameter-exploration/
+tasks.md` complete; `npm run check:all` (extensibility, disclosure,
 determinism, `check:a11y` 48/48, `check:key-isolation`, `check:real-mode`
 17/17, `check:parameter-exploration`) and `npm run build`/`tsc`/`eslint`
-all pass clean. All three user stories are built and independently
+all passed clean. All three user stories were built and independently
 verified: the 9-point chunk-size sweep curve (US1, keyboard-operable,
 Real-Mode-cost-gated); shareable permalinks that structurally exclude
 API keys and custom document text (US2, `permalink-safety.ts`
@@ -339,9 +392,8 @@ Milestone 1 a11y tests broke on locator ambiguity once
 `PermalinkButton`'s always-present `aria-live` region was added (test
 fix only, no behavior change), and the failure-preset picker's
 selected-state styling initially failed WCAG contrast (4.12:1 vs. the
-4.5:1 minimum), fixed before this version closed.
-
-Supersedes 1.8.0 (2026-08-08, Milestone 2's Definition of Done fully
+4.5:1 minimum), fixed before that version closed), 1.8.0 (2026-08-08,
+Milestone 2's Definition of Done fully
 met -- all 59 of 59 tasks in `specs/002-real-mode/tasks.md` complete;
 `npm run check:all` -- extensibility, disclosure, determinism,
 `check:a11y` 37/37, `check:key-isolation`, `check:real-mode` 17/17 --

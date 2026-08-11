@@ -25,6 +25,16 @@
  * rule for GenerationStep: rendered with an active Real Mode session, it
  * must carry a marker naming the provider, mirroring the label MUST-be
  * "labeled as real" requirement in FR-006.
+ *
+ * Extended again for 004-real-mode-depth (research.md's "check:disclosure
+ * scope" decision) with two rules for CompareSimulatedVsReal: (a)
+ * rendered with `naive` selected, its Simulated panel still carries a
+ * non-empty `data-simulated-disclosure="true"` element (FR-001's
+ * unconditional requirement -- every configuration, not just non-naive
+ * ones); (b) rendered with a non-`naive` configuration selected, that
+ * same element's text additionally states the approximation caveat
+ * (research.md's "Simulated half for HyDE/RAG-Fusion configurations"
+ * decision).
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -33,6 +43,7 @@ import { EmbeddingStep } from "../../src/concepts/rag/pipeline/steps/EmbeddingSt
 import { RetrievalStep } from "../../src/concepts/rag/pipeline/steps/RetrievalStep";
 import { GenerationStep } from "../../src/concepts/rag/pipeline/steps/GenerationStep";
 import { RealModeToggle } from "../../src/concepts/rag/realMode/RealModeToggle";
+import { CompareSimulatedVsReal } from "../../src/concepts/rag/compareReal/CompareSimulatedVsReal";
 import { openaiProviderConfig } from "../../src/concepts/rag/realMode/providerConfigs";
 import type { RealModeSession } from "../../src/concepts/rag/realMode/types";
 
@@ -59,6 +70,24 @@ function checkSurface(name: string, markup: string): CheckFailure[] {
   const textContent = match[4].replace(/<[^>]+>/g, "").trim();
   if (textContent.length === 0) {
     return [{ location: name, message: "data-simulated-disclosure element has empty text content" }];
+  }
+  return [];
+}
+
+function checkApproximationCaveat(name: string, markup: string): CheckFailure[] {
+  const match = markup.match(DISCLOSURE_RE);
+  if (!match) {
+    return [{ location: name, message: 'missing a data-simulated-disclosure="true" element' }];
+  }
+  const textContent = match[4].replace(/<[^>]+>/g, " ").trim();
+  if (!/approximat/i.test(textContent)) {
+    return [
+      {
+        location: name,
+        message:
+          "data-simulated-disclosure element must state the HyDE/RAG-Fusion approximation caveat when a non-naive configuration is selected (research.md)",
+      },
+    ];
   }
   return [];
 }
@@ -174,6 +203,24 @@ const failures: CheckFailure[] = [
       }),
     ),
     [/OpenAI/i],
+  ),
+  ...checkSurface(
+    "CompareSimulatedVsReal.tsx (naive selected)",
+    renderToStaticMarkup(
+      createElement(CompareSimulatedVsReal, { topK: 3, initialConfigurationId: "naive" }),
+    ),
+  ),
+  ...checkApproximationCaveat(
+    "CompareSimulatedVsReal.tsx (hyde selected)",
+    renderToStaticMarkup(
+      createElement(CompareSimulatedVsReal, { topK: 3, initialConfigurationId: "hyde" }),
+    ),
+  ),
+  ...checkApproximationCaveat(
+    "CompareSimulatedVsReal.tsx (fusion selected)",
+    renderToStaticMarkup(
+      createElement(CompareSimulatedVsReal, { topK: 3, initialConfigurationId: "fusion" }),
+    ),
   ),
 ];
 
