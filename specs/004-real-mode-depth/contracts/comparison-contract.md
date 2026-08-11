@@ -14,7 +14,12 @@
 - A configuration selector (`naive` | `hyde` | `fusion`), reusing
   `VariantsComparison.tsx`'s existing `aria-pressed` pill-button pattern
   (already accessibility-verified) rather than inventing a new selector
-  widget (FR-002a).
+  widget (FR-002a). Unlike `VariantsComparison.tsx` (which isolates
+  state per configuration and so leaves its selector enabled during a
+  run), this view's selector buttons are disabled with an accessible
+  reason whenever `realStatus === "running"` for the currently displayed
+  `ComparisonResult`, re-enabling once it settles -- research.md's
+  "Configuration selector during an in-flight Real half" decision.
 - Building one `ComparisonResult` (`compareReal/types.ts`,
   data-model.md) per (docId, query, configurationId) combination.
 

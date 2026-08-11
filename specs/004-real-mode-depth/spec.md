@@ -24,7 +24,7 @@ session"
 
 ### User Story 1 - See exactly where the simulation and reality diverge (Priority: P1)
 
-A practitioner who has used both Simulated and Real Mode wants to see
+A learner who has used both Simulated and Real Mode wants to see
 them run side by side for the same document and question, so the gap
 between the teaching simulation and real embedding geometry is concrete
 and inspectable, not just described in a disclosure caption.
@@ -66,7 +66,7 @@ without additional clicks.
 
 ### User Story 2 - Track real cost across a whole session, not per call (Priority: P2)
 
-A practitioner running several real queries, and possibly several
+A learner running several real queries, and possibly several
 variant executions, wants to see a running total of calls and estimated
 cost across their whole Real Mode session, not just a per-action
 estimate that resets the moment they move to the next step.
@@ -111,6 +111,15 @@ individual actions taken.
   claimed as deterministic per spec.md 002 -- while Simulated Mode's half
   remains identical every time per Constitution Principle V; the
   comparison view should make this asymmetry visible, not confusing.)
+- What happens if a learner switches the retrieval configuration
+  (naive RAG, HyDE, or RAG-Fusion) while the Real half is still running
+  for the previously selected configuration? (The configuration selector
+  is disabled for the duration of an in-flight Real half, re-enabling
+  once it settles to done or error, rather than allowing a switch that
+  would orphan the in-flight call's result -- the call itself still
+  completes and is still recorded on the cumulative cost ledger either
+  way, since ledger accounting does not depend on which configuration is
+  currently displayed.)
 - What happens to the cumulative cost total if a real call fails partway
   (e.g. a rate limit error)? (A failed call that made no billable request
   should not be added to the total; a failed call that did consume quota

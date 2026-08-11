@@ -198,6 +198,50 @@ still surfaces the prompt from wherever it was triggered -- consistent
 with `CostLedgerDisplay`'s own FR-005 requirement to be visible from any
 step/view already.
 
+## Decision: Configuration selector during an in-flight Real half
+
+**Decision**: `CompareSimulatedVsReal.tsx` holds one `ComparisonResult` at
+a time (contracts/comparison-contract.md's "one `ComparisonResult` per
+(docId, query, configurationId) combination"), not three
+independently-isolated per-configuration state slots the way
+`VariantsComparison.tsx` does. The configuration selector's three
+buttons are disabled (with an accessible reason, e.g. `aria-disabled`
+plus visible helper text "Waiting for the current Real Mode call to
+finish") whenever `realStatus === "running"` for the currently displayed
+`ComparisonResult`, and re-enabled once it settles to `"done"` or
+`"error"`.
+
+**Rationale**: Because this view keeps a single `ComparisonResult`
+object (unlike `VariantsComparison.tsx`'s three parallel `naiveState`/
+`hydeState`/`fusionState` slots, each independently updated by its own
+in-flight call regardless of which is currently selected), switching
+`configurationId` while a Real half is in flight would replace the
+object the in-flight promise's resolution handler is closing over,
+orphaning that result -- the learner would never see it render, even
+though the underlying real API call still fires and is still correctly
+recorded on the cumulative cost ledger (ledger accounting is
+call-based, not tied to which configuration is currently displayed, so
+this doesn't create an accounting bug -- just a UI result the learner
+can't see). Disabling the selector for the duration of that one call is
+simpler and more honest than either silently discarding the result or
+building a second, more complex per-configuration state model this
+view doesn't otherwise need. See spec.md's Edge Cases for the resulting
+learner-facing behavior.
+
+**Alternatives considered**: Mirroring `VariantsComparison.tsx`'s
+per-configuration state isolation (three parallel `ComparisonResult`
+slots instead of one) was considered -- it would allow switching
+mid-run, matching that existing precedent -- but rejected as
+disproportionate: `VariantsComparison.tsx` needs that shape because all
+three of its variants are routinely compared side by side across
+several runs in one session (spec.md 002's own scope), whereas this
+view's `pairs` table already surfaces one configuration's comparison at
+a time by design (FR-002a), so there is no existing need to keep three
+results warm simultaneously. Letting the switch silently orphan the
+in-flight result was also considered and rejected -- a call the learner
+was billed for value not being shown is a worse experience than a
+few-second-long disabled selector.
+
 ## Decision: `check:disclosure` and `check:extensibility`/`check:determinism` scope
 
 **Decision**: `check:extensibility` and `check:determinism` need no new

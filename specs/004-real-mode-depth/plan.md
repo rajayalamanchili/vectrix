@@ -117,7 +117,7 @@ no cross-session persistence -- unchanged from prior milestones.
 
 | Principle | Status | Notes |
 |---|---|---|
-| I. Extensibility Is Structural | PASS | All new code lives inside `src/concepts/rag/` (two new subfolders: `compareReal/`, `costLedger/`, plus edits to `RagConcept.tsx` and the five existing files that construct a `RealModeProvider`). No file outside `src/concepts/rag/` is touched. `check:extensibility`'s existing scan needs no new rule. |
+| I. Extensibility Is Structural | PASS | All new code lives inside `src/concepts/rag/` (two new subfolders: `compareReal/`, `costLedger/`, plus edits to `RagConcept.tsx` and the five existing files that construct a `RealModeProvider`). No file outside `src/concepts/rag/` contains a new concept-id-keyed conditional -- the only files touched outside that folder are `scripts/checks/`, `tests/`, and `package.json`'s check script wiring, the same category of file Milestones 1-3 already touched outside the folder without tripping this principle. `check:extensibility`'s existing scan needs no new rule. |
 | II. Never Blur Simulated vs Real | PASS, with one design decision load-bearing here | The comparison view is this milestone's biggest risk to this principle -- resolved by never fabricating a "simulated HyDE/RAG-Fusion": the Simulated half always shows the real, already-disclosed naive-RAG simulated ranking, with an explicit `data-simulated-disclosure`-style caveat when the selected configuration isn't naive (research.md). Both halves keep their own existing mode-disclosure markers verbatim (FR-001). Every cost figure is labeled an estimate with its basis named (FR-008), never presented as exact. |
 | III. Every Interaction Teaches Something | PASS | The comparison view -> FR-001/FR-002/SC-001 (the simulation-vs-reality gap becomes a concrete, inspectable fact instead of a caption a learner has to take on faith). The cost ledger -> FR-005/SC-002 (real budget intuition builds over a realistic multi-call session, not one action at a time) and FR-007/SC-004 (a threshold teaches "notice when you're spending real money," not just display a number). |
 | IV. Guided, Not Just Dense | PASS | The comparison view follows the exact `TABS`/`Marginalia` pattern the other two views already use -- no new navigation paradigm. The cost ledger is a small, always-visible widget in `RagConcept.tsx`'s existing chrome (next to `RealModeToggle`), not a new settings page requiring separate navigation. |
@@ -201,8 +201,9 @@ tech-stack.md                              # + "Real Mode Depth (Milestone 4)" r
 **Structure Decision**: No structural change to the existing single
 Next.js project. All new/edited files live inside `src/concepts/rag/`
 (two new subfolders plus targeted edits to five existing real-call
-sites and `RagConcept.tsx`) or inside the already-established
-`scripts/checks/`/`tests/` top-level directories. `src/lib/concept-
+sites and `RagConcept.tsx`), inside the already-established
+`scripts/checks/`/`tests/` top-level directories, or (for `check:real-
+mode-depth`'s script wiring) `package.json`. `src/lib/concept-
 registry.ts` and `src/lib/concept-types.ts` remain untouched, preserving
 Principle I. `src/app/concepts/[conceptId]/page.tsx` is untouched --
 unlike Milestone 3, this feature adds no `useSearchParams()` usage, so

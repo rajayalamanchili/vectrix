@@ -85,6 +85,11 @@ behaves identically now that its provider construction routes through
     steps (confirm the total is unchanged and still visible), then
     refresh the page (confirm the total resets to zero, matching the
     API key's own reset-on-refresh behavior).
+13. **Edge Case: ledger survives switching Real Mode off mid-session**
+    -- with a non-zero total, toggle Real Mode off via the existing
+    Real Mode toggle, then back on. Confirm the displayed total is
+    unchanged throughout (Real Mode being inactive doesn't clear or
+    pause the ledger -- only a full page refresh does, per scenario 12).
 
 ## Automated checks (this feature's additions to `npm run check:all`)
 
