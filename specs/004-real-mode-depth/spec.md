@@ -4,11 +4,21 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- pending `/speckit.clarify`
+**Status**: Draft -- clarified 2026-08-10, pending `/speckit.plan`
 
 **Input**: User description: "Side-by-side Simulated vs Real Mode
 comparison and cumulative cost/latency tracking across a Real Mode
 session"
+
+## Clarifications
+
+### Session 2026-08-10
+
+- Q: Where should the new "Compare Simulated vs Real" view live in the existing UI structure — a new third top-level view, or a toggle integrated into the existing Pipeline Walkthrough's Retrieval step? → A: New third top-level view, sitting alongside Pipeline Walkthrough and Compare Variants.
+- Q: Should the Compare Simulated vs Real view cover only baseline (naive) RAG retrieval, or also let a learner compare Simulated vs Real for the HyDE/RAG-Fusion variants Milestone 2 already executes for real? → A: Baseline + variants — a learner can select naive RAG, HyDE, or RAG-Fusion within the comparison view.
+- Q: What should the default cumulative-cost warning threshold be for a learner who never configures one themselves? → A: $1.00.
+- Q: Should the cumulative cost ledger survive a page refresh within the same browser tab, or is it allowed to reset on refresh like the API key already does? → A: In-memory only, resets on refresh — matches the existing API key storage pattern (tech-stack.md, Milestone 2); "persists across an entire Real Mode session" means across step/view navigation, not across a page refresh.
+- Q: If a learner opens the Compare Simulated vs Real view before ever configuring Real Mode (no API key entered yet), what should happen? → A: The Simulated half renders immediately; the Real half shows the same inline API key entry prompt Real Mode already uses elsewhere, in place of the Real chart, rather than blocking the whole view.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -107,8 +117,8 @@ individual actions taken.
   before failing should be -- this must be handled per-provider's actual
   behavior, not assumed uniformly.)
 - What happens if the learner never configures a warning threshold?
-  (A sensible default threshold should apply rather than the warning
-  feature being silently unavailable until manually configured.)
+  (A default threshold of $1.00 applies rather than the warning feature
+  being silently unavailable until manually configured.)
 - What happens when a learner switches away from Real Mode entirely mid-
   session? (The cumulative total should persist, ready to resume, rather
   than being lost the moment Real Mode is toggled off.)
@@ -117,26 +127,41 @@ individual actions taken.
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide a mode that renders Simulated and
-  Real results for the same document and question at the same time, with
-  each retaining its own mode-disclosure label.
+- **FR-001**: The system MUST provide a new top-level "Compare Simulated
+  vs Real" view, a sibling to the existing Pipeline Walkthrough and
+  Compare Variants views (not a toggle folded into either), that renders
+  Simulated and Real results for the same document and question at the
+  same time, with each retaining its own mode-disclosure label.
 - **FR-002**: The comparison MUST make each chunk's rank/position in both
   modes inspectable side by side, not only visually approximate.
+- **FR-002a**: The comparison view MUST let the learner select which
+  retrieval approach to compare — naive RAG, HyDE, or RAG-Fusion — since
+  these are the only three approaches Milestone 2 executes for real;
+  GraphRAG, Self-RAG, and Agentic RAG remain explanatory-only per
+  spec.md 002 and are not selectable here.
 - **FR-003**: Triggering the Real half of a comparison MUST follow the
   same cost/call disclosure pattern required by spec.md 002 FR-010.
 - **FR-004**: The comparison MUST represent cases where Simulated and
   Real Mode agree closely as an honest, valid outcome, not implying
   divergence is expected or typical.
+- **FR-004a**: If a learner opens the comparison view before Real Mode
+  has been configured with an API key, the Simulated half MUST still
+  render immediately, while the Real half MUST show the same inline API
+  key entry prompt used elsewhere in Real Mode, in place of the Real
+  chart, rather than blocking access to the whole view.
 - **FR-005**: The system MUST maintain a running total of real API calls
   and estimated cost across an entire Real Mode session, visible from any
-  step, not reset on step navigation.
+  step, not reset on step navigation. The ledger lives in memory only
+  (matching the existing API key storage pattern) and is expected to
+  reset on a page refresh or tab close, not persisted to
+  sessionStorage/localStorage.
 - **FR-006**: The system MUST ask before resetting the cumulative total
   when the learner changes the active document or resets pipeline state,
   rather than silently resetting or silently continuing to accumulate.
 - **FR-007**: The system MUST support a learner-configurable warning
-  threshold for cumulative estimated cost, applying a sensible default if
-  the learner never sets one, and MUST surface a visible warning before
-  the next real call once that threshold is crossed.
+  threshold for cumulative estimated cost, defaulting to $1.00 if the
+  learner never sets one, and MUST surface a visible warning before the
+  next real call once that threshold is crossed.
 - **FR-008**: Any displayed cost figure MUST be labeled as an estimate
   with its pricing-assumption basis named, never presented as an exact
   bill.
@@ -144,7 +169,8 @@ individual actions taken.
 ### Key Entities *(include if feature involves data)*
 
 - **ComparisonResult**: a paired (Simulated result, Real result) for the
-  same document/question, including each chunk's rank in both, used to
+  same document/question and a selected retrieval approach (naive RAG,
+  HyDE, or RAG-Fusion), including each chunk's rank in both, used to
   render the side-by-side view.
 - **SessionCostLedger**: the running total of real API calls and
   estimated cost accumulated across a Real Mode session, plus the
@@ -161,8 +187,14 @@ individual actions taken.
   at least three consecutive real actions within one session, verified
   by an automated check that the displayed total matches the sum of the
   individual actions' own estimates.
-- **SC-003**: 100% of comparisons requiring a real call show a cost/call
-  estimate before execution, verified by test.
+- **SC-003**: 100% of the Compare Simulated vs Real view's actions
+  requiring a real call show a cost/call estimate before execution,
+  verified by test. (Pre-existing real-call sites elsewhere in the app --
+  Pipeline Walkthrough, Compare Variants, the chunk-size sweep, recall@K
+  evaluation -- retain spec.md 002 FR-010's existing disclosure
+  requirement, unchanged and out of this SC's scope; FR-005's cumulative
+  ledger tracks their calls but does not redefine their own disclosure
+  obligation.)
 - **SC-004**: Crossing a configured (or default) warning threshold
   surfaces a visible warning before, not after, the next real call is
   made, verified by deliberately triggering the threshold in testing.

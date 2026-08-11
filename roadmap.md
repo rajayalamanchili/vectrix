@@ -239,8 +239,14 @@ custom documents.
 
 ## Milestone 4: Real Mode Depth -- Comparison & Cost Tracking
 **Spec**: `specs/004-real-mode-depth/spec.md`
-**Status**: Spec drafted, pending `/speckit.clarify` and `/speckit.plan` --
-do not begin until Milestone 3's Definition of Done is met.
+**Status**: Clarified (2026-08-10, five ambiguities resolved -- view
+placement, comparison scope, default warning threshold, ledger
+persistence, no-key behavior) and planned (`/speckit.plan`, 2026-08-10:
+`research.md`, `data-model.md`, `contracts/`, `quickstart.md` generated;
+`tech-stack.md` amended to 1.5.0 with the cost-ledger-decorator and
+flat-per-call-pricing decisions). Pending `/speckit.tasks` and
+`/speckit.implement`. Milestone 3's Definition of Done is met, so this
+milestone may proceed.
 
 **Scope**: A side-by-side Simulated-vs-Real comparison view for the same
 document and question, with each chunk's rank in both modes directly
