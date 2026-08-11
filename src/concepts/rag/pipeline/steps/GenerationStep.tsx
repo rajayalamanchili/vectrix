@@ -4,9 +4,12 @@ import { useEffect, useState } from "react";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { Slider } from "@/components/ui/Slider";
 import { ErrorBanner } from "../../realMode/ErrorBanner";
-import { createOpenAICompatibleProvider } from "../../realMode/openaiCompatibleProvider";
 import type { GenerationParams, RealModeError, RealModeSession } from "../../realMode/types";
 import type { RetrievedChunk } from "./RetrievalStep";
+import { createTrackedProvider } from "../../costLedger/trackedProvider";
+import { useCostGate } from "../../costLedger/useCostGate";
+import { CostWarningBanner } from "../../costLedger/CostWarningBanner";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../../costLedger/types";
 
 /** FR-016 canonical call type for this step's one real call. */
 const STAGE = "final-generate";
@@ -41,6 +44,8 @@ export function GenerationStep({
   onRealModeChange,
   params,
   onParamsChange,
+  costLedger,
+  onCostLedgerAppend,
 }: {
   query: string;
   results: RetrievedChunk[];
@@ -48,6 +53,9 @@ export function GenerationStep({
   onRealModeChange?: (next: RealModeSession) => void;
   params?: GenerationParams;
   onParamsChange?: (next: GenerationParams) => void;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
 }) {
   const contextBlock = results.map((r, i) => `[${i + 1}] ${r.chunk.text}`).join("\n\n");
   const prompt = `You are a helpful assistant. Answer the question using ONLY the context below. If the context doesn't contain the answer, say so.
@@ -66,16 +74,28 @@ Question: ${query || "(no query yet)"}`;
   // Only this step's own call type -- an embedding failure surfaced
   // elsewhere must not make this step show a stale banner.
   const stageError = realMode?.error?.stage === STAGE ? realMode.error : null;
+
+  // FR-007: re-evaluated fresh per distinct call (research.md's
+  // warning-threshold decision), keyed on exactly the inputs that would
+  // trigger a new generate call.
+  const callKey = JSON.stringify([prompt, temperature, retryToken]);
+  const costGate = useCostGate(costLedger, callKey);
+  const blocked = isReal && costGate.blocked;
+
   // Derived, not a separate boolean: "in flight" is exactly "real mode is
-  // on, we don't have an answer yet, and the last attempt didn't error."
-  const loading = isReal && realAnswer === null && !stageError;
+  // on, we don't have an answer yet, the last attempt didn't error, and
+  // it isn't waiting on the cost-warning gate."
+  const loading = isReal && realAnswer === null && !stageError && !blocked;
 
   useEffect(() => {
-    if (!isReal || !realMode || !realMode.apiKey) {
+    if (!isReal || !realMode || !realMode.apiKey || blocked) {
       return;
     }
     let cancelled = false;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     provider
       .generate(prompt, { temperature })
       .then((text) => {
@@ -94,7 +114,7 @@ Question: ${query || "(no query yet)"}`;
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReal, prompt, temperature, retryToken]);
+  }, [isReal, prompt, temperature, retryToken, blocked]);
 
   const answer = isReal ? realAnswer : mockGenerate(query, results);
 
@@ -171,7 +191,13 @@ Question: ${query || "(no query yet)"}`;
           <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-query-amber">
             {isReal ? "Real answer" : "Simulated answer"}
           </div>
-          {loading ? (
+          {blocked ? (
+            <CostWarningBanner
+              totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+              thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+              onProceedAnyway={costGate.proceed}
+            />
+          ) : loading ? (
             <p role="status" className="text-xs italic text-ink-500">
               Generating via {realMode?.provider.label}...
             </p>
@@ -195,7 +221,7 @@ Question: ${query || "(no query yet)"}`;
               GenerationStep.tsx for the one-function swap to a real API.
             </p>
           )}
-          {isReal && !loading && !showUnavailable && !stageError && (
+          {isReal && !loading && !showUnavailable && !stageError && !blocked && (
             <button
               onClick={handleRegenerate}
               className="mt-3 rounded border border-chart-line px-3 py-1.5 text-xs font-medium text-ink-300 hover:text-ink-100 transition-colors"

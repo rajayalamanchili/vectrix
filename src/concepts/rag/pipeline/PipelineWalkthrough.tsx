@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { StepperNav } from "@/components/ui/StepperNav";
 import type { ChunkingStrategy, SampleDoc } from "../lib/sampleDocs";
 import type { GenerationParams, RealModeSession } from "../realMode/types";
+import type { CostLedgerEntry, SessionCostLedger } from "../costLedger/types";
 import { DocumentStep } from "./steps/DocumentStep";
 import { ChunkingStep } from "./steps/ChunkingStep";
 import { EmbeddingStep } from "./steps/EmbeddingStep";
@@ -33,6 +34,9 @@ export function PipelineWalkthrough({
   onGenerationParamsChange,
   topK,
   onTopKChange,
+  costLedger,
+  onCostLedgerAppend,
+  onLedgerResetPrompt,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
@@ -41,6 +45,10 @@ export function PipelineWalkthrough({
   /** Lifted to RagConcept.tsx (US6/FR-011) so EvalPanel's recall@K scoring reuses this exact value. */
   topK: number;
   onTopKChange: (k: number) => void;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-006, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
+  onLedgerResetPrompt?: () => void;
 }) {
   // 003-parameter-exploration US2: a permalink's parameters are read
   // synchronously during the very first render (contracts/permalink-
@@ -148,6 +156,7 @@ export function PipelineWalkthrough({
     setQuery("");
     setResults([]);
     setStepIndex(0);
+    onLedgerResetPrompt?.();
   }
 
   // Switching to a custom document is the same class of invalidation as
@@ -231,6 +240,7 @@ export function PipelineWalkthrough({
     setResults([]);
     setDocNotFoundMessage(null);
     setActivePresetId(null);
+    onLedgerResetPrompt?.();
   }
 
   // Move keyboard focus to the newly active step's first interactive
@@ -336,6 +346,8 @@ export function PipelineWalkthrough({
             realMode={realMode}
             onRealModeChange={onRealModeChange}
             customDoc={customDoc}
+            costLedger={costLedger}
+            onCostLedgerAppend={onCostLedgerAppend}
           />
         )}
         {stepIndex === 3 && (
@@ -358,6 +370,8 @@ export function PipelineWalkthrough({
             onRealModeChange={onRealModeChange}
             customDoc={customDoc}
             onSweepJump={handleSweepJump}
+            costLedger={costLedger}
+            onCostLedgerAppend={onCostLedgerAppend}
           />
         )}
         {stepIndex === 4 && (
@@ -368,6 +382,8 @@ export function PipelineWalkthrough({
             onRealModeChange={onRealModeChange}
             params={generationParams}
             onParamsChange={onGenerationParamsChange}
+            costLedger={costLedger}
+            onCostLedgerAppend={onCostLedgerAppend}
           />
         )}
       </div>

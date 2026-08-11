@@ -7,7 +7,6 @@ import { StarChart, type StarPoint } from "@/components/charts/StarChart";
 import { Panel, Marginalia } from "@/components/ui/Panel";
 import { ErrorBanner } from "../realMode/ErrorBanner";
 import { CustomDocumentInput } from "../realMode/CustomDocumentInput";
-import { createOpenAICompatibleProvider } from "../realMode/openaiCompatibleProvider";
 import { projectTo2D } from "../realMode/pca";
 import {
   rankChunks,
@@ -18,6 +17,12 @@ import {
 } from "../realMode/variantExecution";
 import { callsPerConfiguration } from "../realMode/callEstimate";
 import { ragVariants } from "../variants/variantData";
+import { createTrackedProvider } from "../costLedger/trackedProvider";
+import { useCostGate } from "../costLedger/useCostGate";
+import { CostWarningBanner } from "../costLedger/CostWarningBanner";
+import { costEstimateUsd } from "../costLedger/costEstimate";
+import { openaiPricing } from "../costLedger/pricing";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../costLedger/types";
 import type { RetrievedChunk } from "../pipeline/steps/RetrievalStep";
 import type { ConfigurationId, GenerationParams, RealModeError, RealModeSession } from "../realMode/types";
 import type { ChunkRankPair, RealHalfStatus } from "./types";
@@ -63,6 +68,9 @@ export function CompareSimulatedVsReal({
   generationParams,
   topK,
   initialConfigurationId,
+  costLedger,
+  onCostLedgerAppend,
+  onLedgerResetPrompt,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
@@ -70,6 +78,10 @@ export function CompareSimulatedVsReal({
   topK: number;
   /** Test/check-only seam (scripts/checks/simulated-disclosure.ts): lets a static render exercise the non-naive approximation-caveat branch without simulating a click. Defaults to "naive" for every real caller. */
   initialConfigurationId?: ConfigurationId;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-006, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
+  onLedgerResetPrompt?: () => void;
 }) {
   // Independent document/query state (research.md) -- mirrors
   // VariantsComparison.tsx's own precedent, not shared with Pipeline
@@ -109,11 +121,13 @@ export function CompareSimulatedVsReal({
     const newDoc = sampleDocs.find((d) => d.id === id) ?? sampleDocs[0];
     setQuery(newDoc.sampleQueries[0] ?? "");
     resetRealHalf();
+    onLedgerResetPrompt?.();
   }
   function handleUseCustomDocument() {
     setCustomMode("custom");
     setQuery(customQuestion);
     resetRealHalf();
+    onLedgerResetPrompt?.();
   }
   function handleRevertToSample() {
     setCustomMode("sample");
@@ -122,6 +136,7 @@ export function CompareSimulatedVsReal({
     const newDoc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
     setQuery(newDoc.sampleQueries[0] ?? "");
     resetRealHalf();
+    onLedgerResetPrompt?.();
   }
   function handleConfigSelect(id: ConfigurationId) {
     // research.md's "Configuration selector during an in-flight Real
@@ -162,7 +177,22 @@ export function CompareSimulatedVsReal({
     : runState.status === "idle"
       ? "awaiting-confirmation"
       : runState.status;
-  const realCallEstimate = callsPerConfiguration(configurationId, { hydeCount, fusionN });
+  // This view's Real half never issues a final-answer generate call --
+  // it compares retrieval rankings only (contracts/comparison-
+  // contract.md's Non-goals), unlike VariantsComparison's runNaive/
+  // runHyde/runFusion which each end with one. Its true call count and
+  // cost are therefore exactly one generate call fewer than
+  // callsPerConfiguration()/costEstimateUsd() assume for every
+  // configuration.
+  const realCallEstimate = callsPerConfiguration(configurationId, { hydeCount, fusionN }) - 1;
+  const realCostEstimateUsd =
+    costEstimateUsd(configurationId, { hydeCount, fusionN }, openaiPricing) - openaiPricing.generateCallUsd;
+
+  // FR-007: re-evaluated fresh per distinct run (research.md's
+  // warning-threshold decision), keyed on exactly what this run would
+  // execute against.
+  const runCallKey = JSON.stringify([docId, customMode, customText, query, configurationId]);
+  const runCostGate = useCostGate(costLedger, runCallKey);
 
   const realProjection = useMemo(() => {
     if (!runState.corpusVectors || !runState.beaconVector) return null;
@@ -188,7 +218,10 @@ export function CompareSimulatedVsReal({
     const wasRerun = runState.status === "done" || runState.status === "error";
     const token = ++runTokenRef.current;
     setRunState({ ...emptyRunState(), status: "running", rerun: wasRerun });
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
 
     try {
       const corpusVectors = await provider.embedBatch(chunks.map((c) => c.text));
@@ -436,10 +469,21 @@ export function CompareSimulatedVsReal({
               </p>
             )}
 
-            {realStatus === "awaiting-confirmation" && (
+            {realStatus === "awaiting-confirmation" && runCostGate.blocked && (
+              <CostWarningBanner
+                totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+                thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+                onProceedAnyway={() => {
+                  runCostGate.proceed();
+                  void runReal();
+                }}
+              />
+            )}
+            {realStatus === "awaiting-confirmation" && !runCostGate.blocked && (
               <div>
                 <p className="mb-3 text-xs text-ink-500">
-                  Estimated calls for this run: <span className="font-mono">{realCallEstimate}</span>
+                  Estimated calls for this run: <span className="font-mono">{realCallEstimate}</span> (~$
+                  <span className="font-mono">{realCostEstimateUsd.toFixed(5)}</span>, {openaiPricing.label})
                 </p>
                 <button
                   onClick={() => void runReal()}
@@ -475,7 +519,17 @@ export function CompareSimulatedVsReal({
                   simulation.
                 </p>
                 <button
-                  onClick={() => void runReal()}
+                  onClick={() => {
+                    // FR-007: a re-run is a new real call -- route back
+                    // through the "awaiting-confirmation" gate rather
+                    // than firing directly, so a since-crossed threshold
+                    // is caught here too, not just on the first run.
+                    if (runCostGate.blocked) {
+                      resetRealHalf();
+                    } else {
+                      void runReal();
+                    }
+                  }}
                   className="mt-3 rounded border border-chart-line px-3 py-1.5 text-xs text-ink-300 transition-colors hover:border-ink-500 hover:text-ink-100"
                 >
                   Run again

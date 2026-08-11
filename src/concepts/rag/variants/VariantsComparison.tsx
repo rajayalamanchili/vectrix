@@ -10,7 +10,6 @@ import { sampleDocs, chunkText, type SampleDoc } from "../lib/sampleDocs";
 import { ErrorBanner } from "../realMode/ErrorBanner";
 import { CustomDocumentInput } from "../realMode/CustomDocumentInput";
 import { EvalPanel } from "./EvalPanel";
-import { createOpenAICompatibleProvider } from "../realMode/openaiCompatibleProvider";
 import {
   averageVectors,
   reciprocalRankFusion,
@@ -19,6 +18,12 @@ import {
   buildQueryVariantPrompt,
 } from "../realMode/variantExecution";
 import { hydeCallCount, fusionCallCount, naiveCallCount } from "../realMode/callEstimate";
+import { createTrackedProvider } from "../costLedger/trackedProvider";
+import { isOverBudget, useCostGate } from "../costLedger/useCostGate";
+import { CostWarningBanner } from "../costLedger/CostWarningBanner";
+import { costEstimateUsd } from "../costLedger/costEstimate";
+import { openaiPricing } from "../costLedger/pricing";
+import { sumLedgerUsd, type CostLedgerEntry, type SessionCostLedger } from "../costLedger/types";
 import type { RetrievedChunk } from "../pipeline/steps/RetrievalStep";
 import type { ConfigurationId, GenerationParams, RealModeError, RealModeSession } from "../realMode/types";
 
@@ -112,6 +117,9 @@ export function VariantsComparison({
   onGenerationParamsChange,
   topK,
   onTopKChange,
+  costLedger,
+  onCostLedgerAppend,
+  onLedgerResetPrompt,
 }: {
   realMode?: RealModeSession;
   onRealModeChange?: (next: RealModeSession) => void;
@@ -120,6 +128,10 @@ export function VariantsComparison({
   /** Lifted to RagConcept.tsx (US6/FR-011) -- EvalPanel's recall@K reuses this same value, not a separate eval-only K. */
   topK: number;
   onTopKChange: (k: number) => void;
+  /** 004-real-mode-depth US2: session-wide cost/call ledger (FR-005, FR-006, FR-007). */
+  costLedger?: SessionCostLedger;
+  onCostLedgerAppend?: (entry: CostLedgerEntry) => void;
+  onLedgerResetPrompt?: () => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [browsing, setBrowsing] = useState(false);
@@ -152,6 +164,13 @@ export function VariantsComparison({
   const hydeCount = generationParams?.hydeCount ?? 1;
   const fusionN = generationParams?.fusionN ?? 3;
 
+  // FR-007: re-evaluated fresh per distinct run (research.md's
+  // warning-threshold decision), keyed on the currently selected
+  // configuration and document/question -- a genuinely new run re-arms
+  // the gate even if the same configuration was already run once.
+  const runCallKey = `${selectedConfigId}:${docId}:${customMode}:${query}`;
+  const runCostGate = useCostGate(costLedger, runCallKey);
+
   function resetAllRunStates() {
     setNaiveState(emptyNaiveState());
     setHydeState(emptyHydeState());
@@ -166,11 +185,13 @@ export function VariantsComparison({
     const newDoc = sampleDocs.find((d) => d.id === id) ?? sampleDocs[0];
     setQuery(newDoc.sampleQueries[0] ?? "");
     resetAllRunStates();
+    onLedgerResetPrompt?.();
   }
   function handleUseCustomDocument() {
     setCustomMode("custom");
     setQuery(customQuestion);
     resetAllRunStates();
+    onLedgerResetPrompt?.();
   }
   function handleRevertToSample() {
     setCustomMode("sample");
@@ -179,6 +200,7 @@ export function VariantsComparison({
     const newDoc = sampleDocs.find((d) => d.id === docId) ?? sampleDocs[0];
     setQuery(newDoc.sampleQueries[0] ?? "");
     resetAllRunStates();
+    onLedgerResetPrompt?.();
   }
 
   function toggle(id: string) {
@@ -197,7 +219,10 @@ export function VariantsComparison({
 
   async function runNaive(startFresh: boolean) {
     if (!realMode?.apiKey) return;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     let corpusVectors = startFresh ? null : naiveState.corpusVectors;
     let queryVector = startFresh ? null : naiveState.queryVector;
     let retrieval = startFresh ? null : naiveState.retrieval;
@@ -228,7 +253,10 @@ export function VariantsComparison({
 
   async function runHyde(startFresh: boolean) {
     if (!realMode?.apiKey) return;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     let corpusVectors = startFresh ? null : hydeState.corpusVectors;
     let hypothesisTexts = startFresh ? [] : [...hydeState.hypothesisTexts];
     let hypothesisVectors = startFresh ? null : hydeState.hypothesisVectors;
@@ -273,7 +301,10 @@ export function VariantsComparison({
 
   async function runFusion(startFresh: boolean) {
     if (!realMode?.apiKey) return;
-    const provider = createOpenAICompatibleProvider(realMode.provider, realMode.apiKey);
+    const provider = createTrackedProvider(
+      { provider: realMode.provider, apiKey: realMode.apiKey },
+      (entry) => onCostLedgerAppend?.(entry),
+    );
     let corpusVectors = startFresh ? null : fusionState.corpusVectors;
     let queryTexts = startFresh ? null : fusionState.queryTexts;
     let variants = startFresh ? [] : [...fusionState.variants];
@@ -327,6 +358,16 @@ export function VariantsComparison({
     if (id === "naive") void runNaive(startFresh);
     if (id === "hyde") void runHyde(startFresh);
     if (id === "fusion") void runFusion(startFresh);
+  }
+
+  /** FR-007: fires immediately if under budget; otherwise just selects
+   * the configuration so the gated Run button below (which shares
+   * `runCostGate`) shows the warning before this run can start. */
+  function runSelectedGated(id: ConfigurationId) {
+    setSelectedConfigId(id);
+    if (!isOverBudget(costLedger)) {
+      runSelected(id, true);
+    }
   }
 
   const compareMode = selected.length === 2 && !browsing;
@@ -427,10 +468,7 @@ export function VariantsComparison({
                   <div className="mt-3 border-t border-chart-line pt-3">
                     {executableId ? (
                       <button
-                        onClick={() => {
-                          setSelectedConfigId(executableId);
-                          runSelected(executableId, true);
-                        }}
+                        onClick={() => runSelectedGated(executableId)}
                         className="rounded border border-doc-teal/40 px-3 py-1.5 text-xs font-medium text-doc-teal hover:bg-doc-teal/10 transition-colors"
                       >
                         Run for real →
@@ -528,7 +566,11 @@ export function VariantsComparison({
                   tone="query"
                 />
                 <p className="mt-1 text-xs text-ink-500">
-                  Estimated calls for this run: <span className="font-mono">{hydeCallCount(hydeCount)}</span>
+                  Estimated calls for this run: <span className="font-mono">{hydeCallCount(hydeCount)}</span> (~$
+                  <span className="font-mono">
+                    {costEstimateUsd("hyde", { hydeCount, fusionN }, openaiPricing).toFixed(5)}
+                  </span>
+                  )
                 </p>
               </div>
             )}
@@ -550,13 +592,21 @@ export function VariantsComparison({
                   tone="query"
                 />
                 <p className="mt-1 text-xs text-ink-500">
-                  Estimated calls for this run: <span className="font-mono">{fusionCallCount(fusionN)}</span>
+                  Estimated calls for this run: <span className="font-mono">{fusionCallCount(fusionN)}</span> (~$
+                  <span className="font-mono">
+                    {costEstimateUsd("fusion", { hydeCount, fusionN }, openaiPricing).toFixed(5)}
+                  </span>
+                  )
                 </p>
               </div>
             )}
             {selectedConfigId === "naive" && (
               <p className="mb-4 text-xs text-ink-500">
-                Estimated calls for this run: <span className="font-mono">{naiveCallCount()}</span>
+                Estimated calls for this run: <span className="font-mono">{naiveCallCount()}</span> (~$
+                <span className="font-mono">
+                  {costEstimateUsd("naive", { hydeCount, fusionN }, openaiPricing).toFixed(5)}
+                </span>
+                )
               </p>
             )}
 
@@ -566,13 +616,24 @@ export function VariantsComparison({
               const running = state.status === "running";
               return (
                 <>
-                  <button
-                    onClick={() => runSelected(selectedConfigId, true)}
-                    disabled={running || !query}
-                    className="rounded bg-query-amber/20 px-3 py-2 text-xs font-medium text-query-amber transition-colors hover:bg-query-amber/30 disabled:opacity-30"
-                  >
-                    {running ? "Running..." : `Run ${ragVariants.find((v) => v.id === selectedConfigId)!.name}`}
-                  </button>
+                  {runCostGate.blocked ? (
+                    <CostWarningBanner
+                      totalUsd={sumLedgerUsd(costLedger ?? { entries: [], warningThresholdUsd: 0, pendingResetPrompt: false })}
+                      thresholdUsd={costLedger?.warningThresholdUsd ?? 0}
+                      onProceedAnyway={() => {
+                        runCostGate.proceed();
+                        runSelected(selectedConfigId, true);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      onClick={() => runSelected(selectedConfigId, true)}
+                      disabled={running || !query}
+                      className="rounded bg-query-amber/20 px-3 py-2 text-xs font-medium text-query-amber transition-colors hover:bg-query-amber/30 disabled:opacity-30"
+                    >
+                      {running ? "Running..." : `Run ${ragVariants.find((v) => v.id === selectedConfigId)!.name}`}
+                    </button>
+                  )}
 
                   {selectedConfigId === "hyde" && (
                     <div className="mt-4 space-y-3">
@@ -770,6 +831,8 @@ export function VariantsComparison({
             realMode={realMode}
             onRealModeChange={onRealModeChange}
             generationParams={generationParams}
+            costLedger={costLedger}
+            onCostLedgerAppend={onCostLedgerAppend}
           />
         )}
       </div>
