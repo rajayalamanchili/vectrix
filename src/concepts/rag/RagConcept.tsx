@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { PipelineWalkthrough } from "./pipeline/PipelineWalkthrough";
 import { VariantsComparison } from "./variants/VariantsComparison";
+import { CompareSimulatedVsReal } from "./compareReal/CompareSimulatedVsReal";
 import { RealModeToggle } from "./realMode/RealModeToggle";
 import { openaiProviderConfig } from "./realMode/providerConfigs";
 import type { GenerationParams, RealModeSession } from "./realMode/types";
@@ -10,6 +11,7 @@ import type { GenerationParams, RealModeSession } from "./realMode/types";
 const TABS = [
   { id: "pipeline", label: "Pipeline Walkthrough" },
   { id: "variants", label: "Compare Variants" },
+  { id: "compare-real", label: "Compare Simulated vs Real" },
 ] as const;
 
 // Real Mode is inactive by default -- every downstream prop threading
@@ -95,6 +97,14 @@ export function RagConcept() {
           onGenerationParamsChange={setGenerationParams}
           topK={topK}
           onTopKChange={setTopK}
+        />
+      )}
+      {tab === "compare-real" && (
+        <CompareSimulatedVsReal
+          realMode={realMode}
+          onRealModeChange={setRealMode}
+          generationParams={generationParams}
+          topK={topK}
         />
       )}
     </div>
