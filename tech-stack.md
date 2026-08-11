@@ -1,8 +1,8 @@
 # Tech Stack
 
 **Project**: Vectrix
-**Status**: Locked for Milestones 1-2
-**Last amended**: 2026-08-05
+**Status**: Locked for Milestones 1-3
+**Last amended**: 2026-08-10
 
 ## Purpose
 
@@ -40,6 +40,14 @@ without amending it first fails the Constitution Check.
 | 2D projection (real embeddings) | Hand-rolled 2-component PCA (power iteration, fixed deterministic start vector and iteration count), no new dependency | Mirrors `mockEmbedding.ts`'s existing hand-rolled-math style rather than adding a charting/ML library (UMAP, t-SNE) -- doesn't trigger the "revisit if a future module needs genuinely general-purpose charting" bar above, since this is still a small, bespoke projection need. Deterministic given fixed input vectors, though the input vectors themselves (a live API response) aren't guaranteed identical run-to-run -- see `002-real-mode/research.md`'s Constitution Principle V scope note. |
 | API key storage | In-memory React state only (`RagConcept.tsx`), never `sessionStorage`/`localStorage` | Simplest, most conservative way to satisfy "session-only, non-persisted" (spec.md 002) -- gone on tab close and on refresh, no browser-storage location to audit. |
 
+## Parameter Exploration behavior (Milestone 3)
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| Sweep chart | Hand-built SVG (decorative, `aria-hidden`) + overlaid native `<button>` per data point, no charting library | Extends the same "hand-built SVG, no dependency" pattern `StarChart`/`FlowDiagram` already established, rather than introducing a general-purpose charting library for one 9-point line chart -- doesn't cross the "genuinely general-purpose charting" bar tech-stack.md already names as the revisit trigger. Native `<button>` elements (not SVG shapes with manual `tabIndex`) carry each point's keyboard focus/activation semantics, decided during `003-parameter-exploration`'s `/speckit.plan` (2026-08-10) specifically because Milestone 1's SVG chart interactions had real, previously-invisible accessibility defects (roadmap.md, 2026-08-05) -- see `003-parameter-exploration/research.md`. |
+| Permalink transport | Plain `URLSearchParams` query keys, read via Next.js's `useSearchParams()`, written via `navigator.clipboard.writeText()` -- no base64/compression encoding, no new dependency | A human-inspectable query string lets SC-002 ("zero API keys or credentials") be verified by a learner directly, not only by the automated check -- an opaque encoded blob would cut against that same transparency goal. See `003-parameter-exploration/research.md`'s "permalink transport" decision. |
+| Permalink read location | `useSearchParams()` inside `PipelineWalkthrough.tsx`, requiring a `<Suspense>` boundary wrapping `<Component />` in `src/app/concepts/[conceptId]/page.tsx` | Discovered by reading `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/use-search-params.md` per AGENTS.md's "read the docs before writing code" instruction: a statically-generated page (`generateStaticParams`) calling `useSearchParams()` without a `Suspense` ancestor fails the production build outright. The wrapper is generic (no `concept.id`-keyed branch), so it doesn't touch Principle I. |
+
 ## Testing & quality
 
 | Concern | Choice | Rationale |
@@ -55,6 +63,9 @@ without amending it first fails the Constitution Check.
 | API-key-isolation check (SC-006, 002-spec) | `scripts/checks/key-isolation.ts` (static: no first-party server route exists) + `tests/real-mode/key-isolation.spec.ts` (Playwright, mocked provider: network-capture assertion) | New for Milestone 2 -- this is the one requirement so far with a real security/privacy consequence if wrong, so it's verified via captured network requests, not assumed from architecture alone. See `002-real-mode/contracts/real-mode-automated-checks-contract.md`. |
 | Real Mode behavioral checks (SC-004, SC-007, SC-008) | Three Playwright specs under `tests/real-mode/`, provider responses mocked via route interception -- no real API key in CI | New for Milestone 2, same "small purpose-built check, not a framework" philosophy as Milestone 1's four. One real end-to-end run against the live API is a manual `tasks.md` task instead, since committing a real key to CI is out of scope. |
 | Accessibility regression check (SC-009, 002-spec) | `tests/a11y/real-mode.spec.ts`, a third spec file alongside Milestone 1's two, same `npm run check:a11y` command | Extends, doesn't replace, Milestone 1's SC-005 check -- covers Real Mode's toggle, key input, temperature/N/hypothesis-count sliders, and custom-document textarea. |
+| Permalink-safety check (SC-002, 003-spec) | `scripts/checks/permalink-safety.ts`, same pure-function/no-browser style as `key-isolation.ts`'s static half | New for Milestone 3 -- fixture-based: calls the real `buildPermalinkParams()` with a fake API key and custom document text present elsewhere in its input, fails if either appears in the output. See `003-parameter-exploration/contracts/permalink-contract.md`. |
+| Failure-preset verification check (SC-004, 003-spec) | `scripts/checks/failure-presets.ts`, same pure-function/no-browser style as `determinism.ts` | New for Milestone 3 -- runs each shipped preset's exact configuration through the *live* chunk/embed/rank functions rather than storing expected numbers, so a chunking-algorithm change that silently stops reproducing a preset's labeled failure is caught immediately. See `003-parameter-exploration/contracts/failure-preset-contract.md`. |
+| Sweep/permalink behavioral + accessibility checks (SC-001, SC-003, SC-005, 003-spec) | Two new Playwright specs under `tests/parameter-exploration/` (mocked provider, no real key in CI) plus a third `tests/a11y/` spec file, bundled under a new `npm run check:parameter-exploration` script added to `check:all` | Same "small purpose-built check, not a framework" philosophy as Milestones 1-2's additions. |
 
 ## Explicitly not yet decided (do not pre-select)
 
@@ -78,14 +89,21 @@ without amending it first fails the Constitution Check.
   (see the table above) but not built; revisit only if a future
   milestone's spec explicitly requires provider choice in the UI.
 
-**Version**: 1.3.0 -- 2026-08-05, revised Real Mode's provider decision
+**Version**: 1.4.0 -- 2026-08-10, added Parameter Exploration's
+AI/data-behavior and testing decisions during `003-parameter-exploration`'s
+`/speckit.plan` -- hand-built SVG+native-`<button>` sweep chart (no
+charting library), `URLSearchParams`-based permalinks (no encoding
+dependency), the `useSearchParams()`/`<Suspense>` constraint discovered
+by reading Next.js's own docs, and two new pure-function checks
+(permalink-safety, failure-preset verification). No new npm dependency
+introduced.
+
+Supersedes 1.3.0 (2026-08-05, revised Real Mode's provider decision
 to be config-driven rather than hardcoded (`ProviderConfig` +
 `RealModeProvider`, OpenAI as the one default/shipped adapter) and
 added a documented-not-built Anthropic generation-only alternate, after
 the initial 1.2.0 draft locked "OpenAI" into the interface/types/UI-copy
-language directly.
-
-Supersedes 1.2.0 (2026-08-05, added Real Mode's AI-behavior and testing
+language directly), 1.2.0 (2026-08-05, added Real Mode's AI-behavior and testing
 decisions -- provider = OpenAI (hardcoded), hand-rolled PCA projection,
 in-memory-only key storage, `RealModeProvider` abstraction, and five
 new/extended automated checks -- during `002-real-mode`'s `/speckit.plan`;

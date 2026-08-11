@@ -4,20 +4,30 @@
 
 **Created**: 2026-08-03
 
-**Status**: Draft -- pending `/speckit.clarify`
+**Status**: Draft -- clarified 2026-08-10, pending `/speckit.plan`
 
 **Input**: User description: "Parameter sweep curves, shareable
 permalinks encoding configuration state, and known-failure presets for
 the RAG module"
 
+## Clarifications
+
+### Session 2026-08-10
+
+- Q: For the chunk-size sweep, what range and how many points should it cover -- a fixed range/step baked into the app, or one the learner can adjust? → A: Fixed range = existing chunk-size slider's min/max (spec 001), fixed point count (8-10 evenly spaced)
+- Q: If a learner starts a second sweep while one is still running, should the new sweep cancel and replace the running one, or queue behind it? → A: Cancel the running sweep immediately, start the new one
+- Q: Is the sweep's output metric fixed (e.g. always top-1 similarity score), or can the learner choose which metric the curve plots? → A: Fixed to top-1 similarity score only, for this milestone
+- Q: Should this milestone's sweep control cover chunk size only, or also other parameters like similarity threshold or Top-K? → A: Chunk size only this milestone; architecture may be generic, but only one sweep target ships
+- Q: How must a learner using only a keyboard select and activate an individual point on the sweep curve to jump to that configuration? → A: Each curve point is a focusable, individually-tabbable element, Enter/Space activates
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - See a sensitivity curve, not just one point (Priority: P1)
 
-A learner wants to see how a metric (e.g. top-1 similarity score) changes
-across a whole range of a parameter -- not just the one value they
-happen to have the slider set to -- so they can see the shape of the
-trade-off, not just a single sample of it.
+A learner wants to see how the top-1 similarity score changes across a
+whole range of a parameter -- not just the one value they happen to
+have the slider set to -- so they can see the shape of the trade-off,
+not just a single sample of it.
 
 **Why this priority**: This is the single highest-leverage addition
 identified against the rest of the field (playground.tensorflow.org's
@@ -27,16 +37,16 @@ infrastructure.
 
 **Independent Test**: On the Retrieval step with a document and question
 selected, activate a sweep on chunk size, and confirm a curve renders
-showing a chosen output metric across a defined range of chunk size
-values, with no manual re-running required per point.
+showing the top-1 similarity score metric across a defined range of
+chunk size values, with no manual re-running required per point.
 
 **Acceptance Scenarios**:
 
 1. **Given** a learner is on the Retrieval step with a question selected,
    **When** they activate a sweep on chunk size, **Then** the app
    automatically re-runs chunking, embedding, and retrieval across a
-   defined range of chunk size values and plots the resulting metric
-   (e.g. top-1 similarity score) as a curve against chunk size.
+   defined range of chunk size values and plots the resulting top-1
+   similarity score as a curve against chunk size.
 2. **Given** a sweep has completed, **When** the learner clicks any point
    on the curve, **Then** the pipeline jumps to that exact parameter
    setting's full state (chunks, chart, retrieval results) -- the curve
@@ -49,9 +59,11 @@ values, with no manual re-running required per point.
    uninteresting result.
 4. **Given** Real Mode is active, **When** the learner activates a sweep
    that would require many real API calls, **Then** an estimated call
-   count and cost are shown and explicit confirmation is required before
-   any of those calls are made, following the same disclosure pattern as
-   Real Mode's variant execution (spec 002 FR-010).
+   count is shown and explicit confirmation is required before any of
+   those calls are made, following the same disclosure pattern -- and
+   the same call-count-only scope, with no dollar figure (deferred to
+   Milestone 4's cost/call ledger per roadmap.md) -- as Real Mode's
+   variant execution (spec 002 FR-010).
 5. **Given** Simulated Mode is active, **When** a sweep runs, **Then** it
    completes with no real API calls and no confirmation step, since no
    cost or determinism concern applies (Constitution Principle V already
@@ -125,7 +137,8 @@ described failure, with an explanation naming the causing parameter.
    failure from an unexplained broken state.
 3. **Given** a learner wants to leave a preset, **When** they activate a
    single "reset to defaults" control, **Then** all parameters return to
-   sensible defaults from any preset-loaded state.
+   sensible defaults from any preset-loaded state or mid-sweep state
+   (matching FR-010's full scope).
 
 ---
 
@@ -138,7 +151,8 @@ described failure, with an explanation naming the causing parameter.
   merely at the sweep's starting value.)
 - What happens if two different parameters are both mid-sweep at once?
   (Only one sweep should be active at a time; starting a second sweep
-  should cancel or queue behind the first, not silently corrupt both.)
+  MUST cancel the running one immediately and start the new one, not
+  queue behind it or silently corrupt both.)
 - What happens if a permalink is generated, then the underlying sample
   document set changes in a future release (a document is renamed or
   removed)? (Opening an old permalink referencing a removed document
@@ -150,32 +164,58 @@ described failure, with an explanation naming the causing parameter.
   see Success Criteria -- not discovered by a learner encountering a
   preset that no longer demonstrates what it claims to.)
 - What happens when a learner tries to permalink a state that includes an
-  active, in-progress sweep? (The permalink should encode the
-  pre-sweep parameter state, not an ambiguous mid-sweep snapshot.)
+  active, in-progress sweep -- including a Real Mode sweep still awaiting
+  cost confirmation, not yet actually running? (Both an awaiting-
+  confirmation sweep and an actively-running one count as "in-progress";
+  the permalink should encode the pre-sweep parameter state in either
+  case, not an ambiguous mid-sweep snapshot.)
+- What happens if a permalink contains a syntactically malformed or
+  out-of-range parameter value (e.g. a chunk size outside the slider's
+  bounds, a similarity threshold outside 0-1)? (That one parameter MUST
+  fall back to its default value rather than applying invalid state;
+  other valid parameters encoded in the same link still apply normally.)
+- What happens if a learner generates a permalink before ever reaching
+  the Retrieval step (i.e., before a question has been set)? (An empty
+  question is validly encodable -- the `q` parameter is simply empty or
+  omitted; this is not a failure case.)
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: The system MUST provide a sweep control for at least chunk
-  size (Simulated Mode) that re-runs the pipeline across a defined range
-  of values and computes a chosen output metric at each step without
-  further learner input per step.
+  size that re-runs the pipeline across a defined range of values and
+  computes a chosen output metric at each step without further learner
+  input per step. This control MUST operate in both Simulated Mode
+  (runs immediately, no confirmation) and Real Mode (gated by FR-003's
+  cost-confirmation requirement before any real call is made) -- it is
+  the same control in both modes, not a Simulated-Mode-only feature.
+  The chunk-size sweep's range is fixed to the existing chunk-size
+  slider's min/max (spec 001), sampled at a fixed 9 evenly spaced
+  points -- not learner-adjustable.
 - **FR-002**: Sweep results MUST render as a curve (parameter value vs.
   metric), with every point clickable to load that exact configuration's
-  full pipeline state.
+  full pipeline state. The metric plotted is fixed to top-1 similarity
+  score for this milestone -- not learner-selectable. Each point MUST be
+  an individually focusable, keyboard-activatable element (Tab to move
+  between points, Enter/Space to activate), per Constitution Principle
+  VII -- not mouse-only.
 - **FR-003**: When a sweep is run in Real Mode and would require more
   than one real API call, the system MUST show an estimated call count
-  and cost and require explicit confirmation before any of those calls
-  are made.
-- **FR-004**: A sweep producing a flat (low-sensitivity) curve MUST be
+  (call-count only, no dollar figure -- deferred to Milestone 4's
+  cost/call ledger per roadmap.md, matching spec 002 FR-010's own scope)
+  and require explicit confirmation before any of those calls are made.
+- **FR-004**: A sweep producing a flat (low-sensitivity, defined as a
+  top-1 score range below 0.02 across all sweep points) curve MUST be
   presented as a valid, clearly labeled outcome, not as an error or an
   empty state.
 - **FR-005**: The system MUST generate a permalink encoding the current
   mode (Simulated/Real) and all current parameter values (document
   selection, chunk size, overlap, chunking strategy, threshold, Top-K,
   question, and, in Real Mode, temperature, RAG-Fusion N, and HyDE
-  hypothetical count).
+  hypothetical count). The "Generate permalink" control MUST be
+  reachable from any pipeline step, not gated behind reaching a specific
+  one.
 - **FR-006**: A generated permalink MUST NOT include any API key or
   credential under any circumstance.
 - **FR-007**: A permalink MUST exclude custom pasted Real Mode document
@@ -183,24 +223,35 @@ described failure, with an explanation naming the causing parameter.
   generating a link under those conditions, not silently applied.
 - **FR-008**: Opening a valid permalink MUST reproduce every encoded
   parameter without requiring the visitor to manually re-enter any of
-  them, while never assuming or requiring a shared API key.
+  them, while never assuming or requiring a shared API key. A parameter
+  that is malformed or outside its control's valid range MUST fall back
+  to that parameter's default rather than applying invalid state,
+  without invalidating the rest of the link's valid parameters.
 - **FR-009**: The system MUST ship at least three named failure presets
   (at minimum: threshold-too-strict producing an empty result set,
   chunk-too-large, and chunk-too-small/fact-split), each associated with
   a specific parameter configuration, sample document, and question, and
-  each accompanied by an explanation naming the causing parameter.
-- **FR-010**: A "reset to defaults" control MUST be reachable from any
-  preset-loaded or swept state.
+  each accompanied by an explanation naming the causing parameter. The
+  preset picker MUST be reachable from any pipeline step (matching User
+  Story 3's Independent Test), not only a specific one.
+- **FR-010**: A "reset to defaults" control MUST be reachable at all
+  times, regardless of how the current state was reached (default,
+  preset-loaded, swept, or permalink-loaded).
 
 ### Key Entities *(include if feature involves data)*
 
-- **SweepResult**: an ordered set of (parameter value, output metric)
-  pairs produced by running the pipeline across a defined range, plus the
-  metric definition used.
-- **PermalinkState**: the encodable subset of pipeline configuration
+- **SweepPoint** / **SweepState**: `SweepPoint` is one (chunk size,
+  clamped overlap, top-1 similarity score, status) tuple; `SweepState` is
+  the ordered set of `SweepPoint`s for one sweep run plus a cancellation
+  token. For the chunk-size sweep, the range is fixed to the existing
+  chunk-size slider's min/max at 9 evenly spaced points (not
+  learner-configurable) -- see data-model.md.
+- **PermalinkParams**: the encodable subset of pipeline configuration
   (mode, document selection, chunking/retrieval/generation parameters)
   that a permalink carries -- explicitly excluding API keys and custom
-  pasted document text.
+  pasted document text. See data-model.md's `PermalinkParams` table and
+  contracts/permalink-contract.md's `PermalinkSourceState`/
+  `ParsedPermalink` types for the exact field-level shape.
 - **FailurePreset**: a named, curated (parameter configuration, sample
   document, sample question, explanation) tuple that reliably reproduces
   a specific, labeled failure mode.
@@ -212,7 +263,12 @@ described failure, with an explanation naming the causing parameter.
 - **SC-001**: A learner can identify, from a sweep curve alone, at least
   one parameter range where the output metric changes meaningfully and
   at least one range where it stays flat, without manually re-running the
-  pipeline by hand at each point.
+  pipeline by hand at each point -- verified against the shipped
+  "coffee" sample document and its first sample query (the same fixture
+  spec 001's SC-006 determinism check uses): the 9-point sweep produces
+  a clearly flat sub-range (chunk sizes 70-85, top-1 score delta
+  ~0.003) and a clearly meaningful-change sub-range (chunk sizes 45-60,
+  delta ~0.09), confirmed against the live `chunkText`/`embed` pipeline.
 - **SC-002**: Every generated permalink, when inspected, is verified by
   an automated check to contain zero API keys or credentials.
 - **SC-003**: Opening a permalink in a fresh, stateless browser session
@@ -222,9 +278,10 @@ described failure, with an explanation naming the causing parameter.
   check run against the current pipeline implementation, to still
   produce its labeled failure -- not merely to load static numbers that
   may have drifted out of sync with pipeline changes over time.
-- **SC-005**: 100% of Real Mode sweeps requiring more than one real API
-  call show a cost/call estimate and require confirmation before any
-  call is made -- verified by test, not by inspection alone.
+- **SC-005**: Every Real Mode sweep -- which, given the fixed 9-point
+  range, always requires more than one real API call -- shows a
+  call-count estimate and requires confirmation before any call is made
+  -- verified by test, not by inspection alone.
 
 ## Assumptions
 
@@ -232,6 +289,10 @@ described failure, with an explanation naming the causing parameter.
   cost-confirmation requirement in FR-003), not deferred to a later
   milestone -- the teaching value of seeing a real fidelity curve is
   judged high enough to justify the added cost-disclosure complexity now.
+- Chunk size is the only sweepable parameter this milestone; the sweep
+  architecture may be built generically, but similarity threshold,
+  Top-K, and other parameters are not exposed as sweep targets until a
+  future milestone.
 - Permalinks cover all parameters except custom pasted Real Mode
   documents (excluded per FR-007) and API keys (excluded per FR-006,
   with no exception).

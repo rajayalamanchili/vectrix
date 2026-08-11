@@ -13,7 +13,8 @@
     "check:key-isolation": "tsx scripts/checks/key-isolation.ts && playwright test tests/real-mode/key-isolation.spec.ts",
     "check:a11y": "playwright test tests/a11y/",
     "check:real-mode": "playwright test tests/real-mode/",
-    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y && npm run check:key-isolation && npm run check:real-mode"
+    "check:parameter-exploration": "tsx scripts/checks/permalink-safety.ts && tsx scripts/checks/failure-presets.ts && playwright test tests/parameter-exploration/",
+    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y && npm run check:key-isolation && npm run check:real-mode && npm run check:parameter-exploration"
   },
   "dependencies": {
     "next": "16.2.12",

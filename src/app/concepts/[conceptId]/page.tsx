@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { conceptRegistry, getConcept } from "@/lib/concept-registry";
 
@@ -40,7 +41,9 @@ export default async function ConceptPage({
       </div>
 
       <div className="mx-auto max-w-5xl px-6 py-8">
-        <Component />
+        <Suspense fallback={null}>
+          <Component />
+        </Suspense>
       </div>
     </main>
   );

@@ -158,6 +158,7 @@ const failures: CheckFailure[] = [
         onResults: () => {},
         realMode: ACTIVE_REAL_MODE_FIXTURE,
         onRealModeChange: () => {},
+        onSweepJump: () => {},
       }),
     ),
     [/OpenAI/i, /PCA/i],
