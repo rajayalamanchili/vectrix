@@ -8,6 +8,14 @@
 
 **Input**: User description: "Agents / Tool Use concept module for Vectrix"
 
+## Clarifications
+
+### Session 2026-08-11
+
+- Q: When a learner runs the agent on a question, does the Walkthrough view reveal the resulting steps one at a time via explicit next/prev navigation controls, or render the whole computed step sequence at once as a single list? → A: Full list at once -- the whole computed step sequence (reasoning, tool-call, observation, final-answer) renders together immediately after a run finishes; there is no click-through stepper or per-step reveal control. "Current step position" (see Edge Cases) refers to which question's run is currently displayed, not a per-step navigation index.
+- Q: Does the fixed iteration cap in FR-006 apply as a single project-wide limit, or could different agent strategies have their own independent caps? → A: Single global cap -- one fixed constant applies project-wide. Only a strategy capable of looping can ever approach it; a strategy that never loops satisfies the cap trivially, by construction, not via a separate limit of its own.
+- Q: Does the determinism guarantee behind SC-003 also have to be verified by an automated check for runs that end in the multi-step loop's "gave up" outcome, or is checking the single-tool-call/final-answer path sufficient? → A: Yes, verify it too -- SC-003's "identical every time" claim is general, with no carve-out for outcome type; the multi-step loop's retry logic is the more complex path and needs its own dedicated determinism check, not just the single-tool-call path.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Watch an agent decide whether and which tool to call (Priority: P1)
@@ -123,11 +131,16 @@ visible without needing to run anything else.
 - What happens if the agent's reasoning loop would need more steps than
   its fixed iteration cap allows? The run stops and shows a distinct
   "gave up before reaching a final answer" outcome, not a silent
-  truncation that looks like a normal completion.
+  truncation that looks like a normal completion -- and, per SC-003's
+  determinism guarantee, retrying the identical (question, enabled
+  tools) combination gives up again, the same way, every time
+  (Clarifications, 2026-08-11).
 - What happens when a learner switches to a different sample question
-  mid-walkthrough? The current step position and results reset, the same
-  invalidation rule the RAG module already applies when its active
-  document changes.
+  mid-walkthrough? The previously displayed run (its full step list and
+  any results) is cleared immediately -- the Walkthrough always renders
+  one run's complete step list at a time, not a click-through stepper
+  (Clarifications, 2026-08-11) -- the same invalidation rule the RAG
+  module already applies when its active document changes.
 - What happens when two tools are both a reasonable fit for the same
   question? The deterministic selection rule still picks exactly one,
   consistently, every time that question runs (User Story 1, Acceptance
@@ -157,10 +170,13 @@ visible without needing to run anything else.
   question, the system MUST have the agent answer directly rather than
   force a poor-fit tool call, and MUST disclose this "no tool needed"
   reasoning as plainly as a tool-call step.
-- **FR-006**: The system MUST cap the number of reasoning/tool-call
-  iterations in a single agent run at a fixed maximum; reaching that cap
-  without a final answer MUST show a distinct "gave up" outcome rather
-  than silently stopping.
+- **FR-006**: The system MUST enforce a single, fixed, project-wide
+  maximum (not a per-strategy limit) on the number of reasoning/tool-call
+  iterations a single agent run may take; reaching that cap without a
+  final answer MUST show a distinct "gave up" outcome rather than
+  silently stopping. Only a strategy capable of looping can ever
+  approach this cap -- a strategy that never loops satisfies it
+  trivially, by construction (Clarifications, 2026-08-11).
 - **FR-007**: The system MUST provide at least 3 shipped sample
   questions spanning different tools (including at least one question no
   tool fits well) and MUST let a learner type their own custom question.
@@ -173,9 +189,13 @@ visible without needing to run anything else.
   real model's output (Constitution Principle II) -- this disclosure
   must be present in the rendered experience, not only in source code.
 - **FR-010**: Every interactive control this module introduces (tool
-  toggles, step/strategy navigation, the custom-question input) MUST be
-  operable via keyboard alone and carry an accessible name distinct from
-  any other control on the same view.
+  toggles, sample-question selection, the custom-question input, and the
+  Walkthrough/Compare Strategies view switcher) MUST be operable via
+  keyboard alone and carry an accessible name distinct from any other
+  control on the same view. (Per Clarifications, 2026-08-11: the
+  Walkthrough's step list renders in full at once, not behind a
+  dedicated step-navigation control, so no separate step-navigation
+  control exists to name here.)
 - **FR-011**: The module MUST be addable to the platform by implementing
   the existing concept-module contract and adding exactly one entry to
   the existing central registry, with no edit required to any file
@@ -210,7 +230,10 @@ visible without needing to run anything else.
   back to a direct answer), verified by an automated check.
 - **SC-003**: Across 10 repeated runs of the same question against the
   same enabled tools, the produced step sequence is identical every
-  time, verified by an automated check.
+  time -- including when a run ends in the multi-step loop's "gave up"
+  outcome, not only runs that reach a final answer (Clarifications,
+  2026-08-11) -- verified by an automated check covering both the
+  single-tool-call and multi-step-loop strategies.
 - **SC-004**: 100% of the module's simulated reasoning/tool-selection
   surfaces carry a visible simulation disclosure, verified by an
   automated check that fails if any is missing.

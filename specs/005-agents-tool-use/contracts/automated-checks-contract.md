@@ -25,14 +25,24 @@ established. SC-006 is verified by an existing, unmodified check
 
 ## `check:agents-tool-use` -- `scripts/checks/agent-determinism.ts` (SC-003)
 
-- **Input**: the shipped `"division"` sample question
-  (`SAMPLE_QUESTIONS`), `single-tool-call` strategy, default toolbox.
-- **Rule**: run `runSingleToolCall(question, DEFAULT_TOOLBOX)` ten
-  times; fail if any run's `AgentRun` (deep-compared, including every
-  step's `content`) differs from run 1's.
-- **Exit code**: `0` = all ten runs identical (SC-003 satisfied). `1` =
-  at least one run diverged, printed with the diverging run index and
-  the first differing step.
+- **Status**: widened 2026-08-11 (`/speckit-clarify`) -- SC-003's
+  "identical every time" guarantee is general, with no carve-out for
+  outcome type, so this check covers both the final-answer path and the
+  multi-step loop's `"gave-up"` path, not `single-tool-call` alone.
+- **Input**: two independent fixtures --
+  1. the shipped `"division"` sample question (`SAMPLE_QUESTIONS`),
+     `single-tool-call` strategy, default toolbox (final-answer path).
+  2. the shipped `"no-fit"` sample question, `multi-step-loop` strategy,
+     default toolbox -- the fixture research.md documents as the one
+     that genuinely reaches `"gave-up"` (gave-up path).
+- **Rule**: for each fixture, run its strategy function ten times; fail
+  if any run's `AgentRun` (deep-compared, including every step's
+  `content` and the run's `outcome`) differs from that fixture's own run
+  1.
+- **Exit code**: `0` = all ten runs identical for both fixtures (SC-003
+  satisfied). `1` = at least one run diverged in either fixture, printed
+  with the fixture name, the diverging run index, and the first
+  differing step.
 - **Supports**: SC-003, Constitution Principle V.
 
 ## `check:agents-tool-use` -- `scripts/checks/agent-tool-toggle-effect.ts` (SC-002)
