@@ -1,8 +1,8 @@
 # Tech Stack
 
 **Project**: Vectrix
-**Status**: Locked for Milestones 1-3
-**Last amended**: 2026-08-10
+**Status**: Locked for Milestones 1-6
+**Last amended**: 2026-08-12
 
 ## Purpose
 
@@ -89,13 +89,18 @@ without amending it first fails the Constitution Check.
 | Toolbox | Three genuinely-computing, non-overlapping tools -- Calculator (real arithmetic via a small hand-rolled operand/operator extraction, no `eval`), Unit Converter (real conversion math over a small fixed unit table), Knowledge Lookup (a small, fixed, shipped fact set) | Implements spec.md's Assumptions directly: tools that can be computed honestly return genuinely correct results, and a knowledge tool draws from a curated fact set, the same "curated, not live" precedent RAG's sample documents already established. No new npm dependency (no math-expression-parser library) -- the supported expression shape is deliberately narrow (one operator, two operands) rather than a general arithmetic parser. |
 | Multi-step reasoning loop / iteration cap | A fixed `MAX_ITERATIONS = 3` -- on a tool match, one extra "verify" reasoning step before finalizing (real, inspectable overhead vs. the single-tool-call strategy); on no match, up to `MAX_ITERATIONS` re-reasoning attempts before a distinct `"gave-up"` outcome, never a fabricated answer | Makes User Story 3's "added cost is legible, not hidden" acceptance scenario concretely true (same answer, genuinely more steps) and makes FR-006's iteration-cap edge case reachable by a real shipped sample question, not only a synthetic test fixture. See `005-agents-tool-use/research.md`'s "multi-step loop" decision for the full reachability argument. |
 
+## Automated Test Suite + CI (Milestone 6)
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| CI platform | GitHub Actions (`.github/workflows/ci.yml`), triggered on `pull_request` targeting `main` | The repo's remote is already `github.com/rajayalamanchili/vectrix` and every prior milestone merged through a GitHub PR -- no new hosting account, integrates natively with GitHub's required-status-checks branch protection for FR-002, and `pull_request`-triggered workflows re-run automatically on new pushes (FR-003) with no extra config. No new npm dependency -- a workflow file is repository configuration, not a package. See `006-test-suite-ci/research.md` item 1. |
+| Check job structure | One job per check, not one job running `npm run check:all` -- three fixed jobs (`typecheck`, `lint`, `build`) plus a dynamically-generated matrix whose entries are read from `package.json`'s `check:*` script names at workflow-run time (a `discover-checks` job feeding `strategy.matrix` via `fromJson()`) | Directly satisfies FR-008/SC-004 (each check's pass/fail is its own named status on the PR, no combined-log scrolling needed) and FR-007 (adding a new concept module's check to the CI gate means adding its script to `package.json`, same as today's `check:all` -- no CI YAML edit) -- extends Constitution Principle I's "one array entry, no core-file edit" extensibility guarantee into CI for the first time. See `006-test-suite-ci/research.md` item 2 and `contracts/ci-workflow-contract.md`. |
+| Success-Criterion traceability | A checked-in manifest, `scripts/checks/lib/sc-traceability-manifest.ts`, mapping every `SC-###` across the five existing `spec.md` files to the test/check file(s) that cover it, verified by a new pure-function script `scripts/checks/sc-coverage.ts` (same no-browser style as `determinism.ts`/`failure-presets.ts`) | Most existing check scripts/Playwright specs already cite the `SC-###` they verify in a header comment, but that numbering resets per milestone (five separate `SC-001`s exist) so it can't be cross-referenced automatically without disambiguation; a small explicit manifest gets FR-004's "traceable" requirement an enforced, verifiable fact (this milestone's own SC-001 hard gate) without rewriting every existing comment. See `006-test-suite-ci/research.md` item 3 and `contracts/sc-traceability-contract.md`. |
+| Merge-blocking policy | Every check is a required status check from the moment it's added -- no advisory/non-blocking trial period, confirmed via `006-test-suite-ci`'s `/speckit-clarify` pass | Matches the constitution's "regressions caught loudly not silently" stance; flaky-test risk is handled by fixing flakiness at its source (spec.md Edge Cases), not a probationary period that would weaken SC-002's "every time, no manual step" guarantee. |
+| Visually-judged Success Criteria (e.g. viewport readability) | Structural/DOM assertions (no horizontal scroll, no clipped text, minimum touch-target size) rather than pixel-diff screenshot-baseline comparison, confirmed via `006-test-suite-ci`'s `/speckit-clarify` pass | No new tooling/dependency, fits the existing Playwright-only precedent; pixel-diff baseline maintenance was judged too large a commitment (and a new dependency requiring its own tech-stack.md amendment) for the one criterion (Milestone 1 SC-004) that needed it. |
+
 ## Explicitly not yet decided (do not pre-select)
 
-- Project-wide, CI-wired testing framework (Milestone 6 scope) -- the
-  four checks above close Milestone 1's specific SC-002/003/005/006 gap
-  with narrowly-scoped scripts; which framework unifies verification
-  across Milestones 1-5 under CI is still open, per roadmap.md Milestone
-  6.
 - Deployment target -- deferred until there's a reason to deploy rather
   than run locally / in Claude Code.
 - Any backend, database, or auth -- out of scope per spec.md Assumptions
@@ -111,7 +116,22 @@ without amending it first fails the Constitution Check.
   (see the table above) but not built; revisit only if a future
   milestone's spec explicitly requires provider choice in the UI.
 
-**Version**: 1.6.0 -- 2026-08-11, added Agents & Tool Use's AI-behavior
+**Version**: 1.7.0 -- 2026-08-12, added Automated Test Suite + CI's
+platform and testing decisions during `006-test-suite-ci`'s
+`/speckit.plan` -- GitHub Actions as the CI platform, a matrix-driven
+job structure generated from `package.json`'s `check:*` script names
+(so adding a module's CI coverage never requires editing the workflow
+YAML, extending Constitution Principle I into CI for the first time), a
+checked-in Success-Criterion traceability manifest verified by a new
+pure-function check (`sc-coverage.ts`), an all-checks-required-from-day-
+one merge-blocking policy, and structural/DOM assertions (not
+pixel-diff screenshots) for previously visually-judged criteria. No new
+npm dependency introduced -- the workflow file is repository
+configuration, not a package. This also resolves the "project-wide,
+CI-wired testing framework" item this file had explicitly deferred to
+Milestone 6 scope since version 1.1.0.
+
+Supersedes 1.6.0 (2026-08-11, added Agents & Tool Use's AI-behavior
 and testing decisions during `005-agents-tool-use`'s `/speckit.plan` --
 rule-based binary-confidence tool matchers (not a continuous similarity
 score) with fixed-declaration-order tie-breaking, a three-tool toolbox

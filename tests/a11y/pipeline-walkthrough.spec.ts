@@ -123,4 +123,25 @@ test.describe("Pipeline Walkthrough accessibility", () => {
     // The stepper must have returned to Document (stale results reset).
     await expect(page.locator('[data-doc-chip]')).toHaveCount(2);
   });
+
+  test("SC-008 (001-core-platform-rag-module): switching chunking strategy at the same chunk size produces a different chunk-boundary list", async ({
+    page,
+  }) => {
+    // Default document (coffee), default chunk size (60) -- the pinned
+    // SC-006/SC-008 fixture. Previously only confirmed via an ad hoc
+    // script (roadmap.md 2026-08-05); now a committed regression test.
+    await page.getByRole("button", { name: "Chunking" }).click();
+
+    const chunkRow = page.locator("div.max-h-\\[300px\\] > div");
+    const fixedBoundaries = await chunkRow.allTextContents();
+
+    await page.getByRole("button", { name: "Sentence-boundary chunking strategy" }).click();
+    const sentenceBoundaries = await chunkRow.allTextContents();
+
+    expect(fixedBoundaries.length).toBeGreaterThan(0);
+    expect(sentenceBoundaries.length).toBeGreaterThan(0);
+    expect(sentenceBoundaries).not.toEqual(fixedBoundaries);
+    expect(fixedBoundaries.length).toBe(6);
+    expect(sentenceBoundaries.length).toBe(10);
+  });
 });

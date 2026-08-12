@@ -19,7 +19,7 @@ export function StepperNav({
           <li key={step.label} className="flex-1 min-w-[120px]">
             <button
               onClick={() => onSelect(i)}
-              className={`w-full h-full px-3 py-2.5 text-left transition-colors border-r border-chart-line last:border-r-0
+              className={`w-full h-full min-h-11 px-3 py-2.5 text-left transition-colors border-r border-chart-line last:border-r-0
                 ${state === "active" ? "bg-doc-teal/15" : "bg-chart-bg-raised hover:bg-chart-line/40"}`}
             >
               <div className="flex items-center gap-2">

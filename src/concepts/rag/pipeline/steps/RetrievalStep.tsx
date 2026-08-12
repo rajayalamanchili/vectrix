@@ -382,7 +382,7 @@ export function RetrievalStep({
               <button
                 key={q}
                 onClick={() => runQuery(q)}
-                className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                className={`min-h-11 inline-flex items-center rounded-full border px-3 py-1 text-xs transition-colors ${
                   q === activeQuery
                     ? "border-query-amber bg-query-amber/15 text-query-amber"
                     : "border-chart-line text-ink-500 hover:text-ink-300"
