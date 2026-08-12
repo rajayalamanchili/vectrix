@@ -15,16 +15,58 @@ import { StepSequence } from "./StepSequence";
  * `activeQuestion` via `runSingleToolCall` -- there is no separate
  * "current run" state to explicitly reset, so switching questions
  * (Edge Cases, spec.md) invalidates the previous run by construction.
+ *
+ * US2 (FR-004): a per-tool enable/disable toggle row, filtering the tool
+ * array passed into `runSingleToolCall`. Disabling every tool still
+ * produces a run (the engine's existing "no enabled tool is a good
+ * match" reasoning step covers the "no tools available" case plainly --
+ * FR-005 -- with no separate code path needed).
  */
 export function AgentWalkthrough() {
   const [activeQuestion, setActiveQuestion] = useState(SAMPLE_QUESTIONS[0].text);
+  const [enabledToolIds, setEnabledToolIds] = useState<string[]>(DEFAULT_TOOLBOX.map((t) => t.id));
 
-  const run = useMemo(() => runSingleToolCall(activeQuestion, DEFAULT_TOOLBOX), [activeQuestion]);
+  const run = useMemo(() => {
+    const enabledTools = DEFAULT_TOOLBOX.filter((t) => enabledToolIds.includes(t.id));
+    return runSingleToolCall(activeQuestion, enabledTools);
+  }, [activeQuestion, enabledToolIds]);
+
+  function toggleTool(id: string) {
+    setEnabledToolIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
       <div className="space-y-4">
         <Panel className="p-5">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <span className="font-mono text-[11px] uppercase tracking-wider text-ink-500">Tools:</span>
+            {DEFAULT_TOOLBOX.map((tool) => {
+              const enabled = enabledToolIds.includes(tool.id);
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  role="switch"
+                  aria-checked={enabled}
+                  data-tool-toggle={tool.id}
+                  title={tool.description}
+                  onClick={() => toggleTool(tool.id)}
+                  className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                    enabled
+                      ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
+                      : "border-chart-line text-ink-500 hover:text-ink-300"
+                  }`}
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`h-1.5 w-1.5 rounded-full ${enabled ? "bg-doc-teal" : "bg-ink-700"}`}
+                  />
+                  {tool.name} {enabled ? "ON" : "OFF"}
+                </button>
+              );
+            })}
+          </div>
           <div className="mb-4 flex flex-wrap gap-2">
             {SAMPLE_QUESTIONS.map((q) => (
               <button

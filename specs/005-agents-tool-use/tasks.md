@@ -100,8 +100,8 @@ run's path.
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Add per-tool enable/disable toggles to `AgentWalkthrough.tsx` in `src/concepts/agents-tool-use/walkthrough/AgentWalkthrough.tsx`: one toggle per `DEFAULT_TOOLBOX` entry, each with an accessible name naming that specific tool, filters the tool array passed into `runSingleToolCall` (FR-004) -- depends on T007
-- [ ] T015 [P] [US2] Create `scripts/checks/agent-tool-toggle-effect.ts` (SC-002): run the `"division"` question with the default toolbox, then again with `"calculator"` filtered out, assert the two step sequences differ and the second run never contains a `tool-call` step with `toolId === "calculator"` -- depends on T003, T005
+- [X] T014 [US2] Add per-tool enable/disable toggles to `AgentWalkthrough.tsx` in `src/concepts/agents-tool-use/walkthrough/AgentWalkthrough.tsx`: one toggle per `DEFAULT_TOOLBOX` entry, each with an accessible name naming that specific tool, filters the tool array passed into `runSingleToolCall` (FR-004) -- depends on T007
+- [X] T015 [P] [US2] Create `scripts/checks/agent-tool-toggle-effect.ts` (SC-002): run the `"division"` question with the default toolbox, then again with `"calculator"` filtered out, assert the two step sequences differ and the second run never contains a `tool-call` step with `toolId === "calculator"` -- depends on T003, T005
 
 **Checkpoint**: User Stories 1 AND 2 both work independently --
 disabling/re-enabling a tool changes/restores the agent's path;
