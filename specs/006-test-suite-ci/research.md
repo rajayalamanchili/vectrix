@@ -114,7 +114,7 @@ against roadmap.md's own status notes and the existing `tests/`/
 `viewport`, or `touch` in any committed test file) surfaces the concrete
 gaps FR-005 must close. This list is the starting point for `tasks.md`,
 not exhaustive proof every other SC is perfectly covered -- confirming
-each of the remaining ~27 SCs' existing coverage is itself part of
+each of the remaining 28 SCs' existing coverage is itself part of
 building the traceability manifest in item 3 above, and is deferred to
 `tasks.md`.
 

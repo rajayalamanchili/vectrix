@@ -22,10 +22,13 @@ as a key in `package.json`'s `scripts` at workflow-run time (enforced
 implicitly -- the matrix is generated *from* that file, so this can't
 drift by construction).
 
-## SuccessCriterionCoverage (the traceability manifest entry)
+## Success Criterion (the traceability manifest entry)
 
-One entry per `SC-###` across the five existing `spec.md` files, defined
-in `scripts/checks/lib/sc-traceability-manifest.ts`.
+Corresponds to spec.md's own Key Entities' "Success Criterion" -- one
+entry per `SC-###` across the five existing `spec.md` files, defined in
+`scripts/checks/lib/sc-traceability-manifest.ts`. The TypeScript type
+backing it (`ScCoverageEntry`, see contracts/sc-traceability-contract.md)
+is named for its manifest-entry role, not a different concept.
 
 | Field | Type | Notes |
 |---|---|---|

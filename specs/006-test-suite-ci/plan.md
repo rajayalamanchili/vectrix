@@ -39,7 +39,7 @@ Playwright/structural-assertion tests closing the identified gaps.
 
 **Constraints**: No new npm dependency (continues every prior milestone's precedent per tech-stack.md); no real third-party API key or live-provider network call in CI (spec.md FR-006); every check required/merge-blocking from the moment it's added, no advisory period (spec.md FR-002, confirmed via `/speckit-clarify`); adding a new concept module's checks to the gate must not require editing the CI workflow's job list (spec.md FR-007)
 
-**Scale/Scope**: 5 existing milestones' specs (31 total `SC-###` entries), 9 existing `check:*` npm scripts, ~86 existing Playwright tests (66 a11y + 20 module-specific), plus this milestone's own new coverage script and gap-closing tests
+**Scale/Scope**: 5 existing milestones' specs (33 total `SC-###` entries), 9 existing `check:*` npm scripts, ~86 existing Playwright tests (66 a11y + 20 module-specific), plus this milestone's own new coverage script and gap-closing tests
 
 ## Constitution Check
 
@@ -93,13 +93,13 @@ scripts/checks/
 
 tests/
 ├── a11y/
-│   └── viewport-readability.spec.ts  # NEW: closes Milestone 1 SC-004 (structural/DOM assertions, per clarification)
-├── parameter-exploration/ or a new tests/core-platform/ dir
-│   └── (new spec closing Milestone 1 SC-008's chunking-strategy-boundary gap)
+│   ├── viewport-readability.spec.ts  # NEW: closes Milestone 1 SC-004 (structural/DOM assertions, per clarification)
+│   └── pipeline-walkthrough.spec.ts  # EXTENDED: closes Milestone 1 SC-008 (chunking-strategy-boundary)
 ├── agents-tool-use/
-│   └── (extended/new spec closing the two Milestone 5 ad hoc-verified quickstart scenarios)
-└── smoke/ or similar
-    └── (new spec closing Milestone 1 SC-001's committed first-time-visitor journey)
+│   ├── walkthrough.spec.ts           # EXTENDED: closes Milestone 5 question-switch state-reset gap
+│   └── strategy-comparison.spec.ts   # EXTENDED: closes Milestone 5 SC-007's same-answer-more-steps gap
+└── smoke/
+    └── first-time-visitor-journey.spec.ts  # NEW: closes Milestone 1 SC-001's committed first-time-visitor journey
 
 package.json                          # `check:sc-coverage` script added to `check:all`'s chain
 tech-stack.md                         # amended: CI platform + traceability-manifest decisions recorded

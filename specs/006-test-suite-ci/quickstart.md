@@ -65,7 +65,7 @@ new tests, it does not touch `src/concepts/`.
 ## Success criteria checklist
 
 - [ ] SC-001: `npm run check:sc-coverage` passes with zero gaps across
-      all 31 `SC-###` entries in specs 001-005.
+      all 33 `SC-###` entries in specs 001-005.
 - [ ] SC-002: Scenario 1 above blocks merge; reverting the regression
       (scenario 2) restores mergeability.
 - [ ] SC-003: Scenario 3 above passes with no false positive.
