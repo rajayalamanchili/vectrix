@@ -35,6 +35,12 @@
  * same element's text additionally states the approximation caveat
  * (research.md's "Simulated half for HyDE/RAG-Fusion configurations"
  * decision).
+ *
+ * Extended for 005-agents-tool-use (SC-004) with a `checkSurface` call
+ * for `AgentWalkthrough` -- module-scoped, but reuses this same script
+ * per contracts/automated-checks-contract.md's "check:disclosure
+ * (extended)" rule, mirroring every prior milestone's grow-in-place
+ * precedent rather than a new script.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -46,6 +52,7 @@ import { RealModeToggle } from "../../src/concepts/rag/realMode/RealModeToggle";
 import { CompareSimulatedVsReal } from "../../src/concepts/rag/compareReal/CompareSimulatedVsReal";
 import { openaiProviderConfig } from "../../src/concepts/rag/realMode/providerConfigs";
 import type { RealModeSession } from "../../src/concepts/rag/realMode/types";
+import { AgentWalkthrough } from "../../src/concepts/agents-tool-use/walkthrough/AgentWalkthrough";
 
 const ACTIVE_REAL_MODE_FIXTURE: RealModeSession = {
   active: true,
@@ -222,6 +229,7 @@ const failures: CheckFailure[] = [
       createElement(CompareSimulatedVsReal, { topK: 3, initialConfigurationId: "fusion" }),
     ),
   ),
+  ...checkSurface("AgentWalkthrough.tsx", renderToStaticMarkup(createElement(AgentWalkthrough))),
 ];
 
 report("check:disclosure", failures);
