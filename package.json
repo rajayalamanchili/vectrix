@@ -15,7 +15,8 @@
     "check:real-mode": "playwright test tests/real-mode/",
     "check:parameter-exploration": "tsx scripts/checks/permalink-safety.ts && tsx scripts/checks/failure-presets.ts && playwright test tests/parameter-exploration/",
     "check:real-mode-depth": "tsx scripts/checks/cost-ledger-sum.ts && playwright test tests/real-mode-depth/ && playwright test tests/a11y/compare-simulated-vs-real.spec.ts tests/a11y/cost-ledger.spec.ts",
-    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y && npm run check:key-isolation && npm run check:real-mode && npm run check:parameter-exploration && npm run check:real-mode-depth"
+    "check:agents-tool-use": "tsx scripts/checks/agent-determinism.ts && tsx scripts/checks/agent-tool-toggle-effect.ts && playwright test tests/agents-tool-use/",
+    "check:all": "npm run check:extensibility && npm run check:disclosure && npm run check:determinism && npm run check:a11y && npm run check:key-isolation && npm run check:real-mode && npm run check:parameter-exploration && npm run check:real-mode-depth && npm run check:agents-tool-use"
   },
   "dependencies": {
     "next": "16.2.12",

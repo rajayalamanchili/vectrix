@@ -138,10 +138,10 @@ the module fully satisfies spec.md's User Stories 1-3.
 controls, plus wiring this feature's checks into the project-wide
 check command.
 
-- [ ] T020 [P] Create `tests/a11y/agents-tool-use.spec.ts` (SC-005): keyboard-reachability + activation + distinct-accessible-name + axe assertions across the sample-question chips, custom-question input, every tool toggle, and the view-tab switcher on both views (FR-010) -- depends on T014, T017
-- [ ] T021 Add the `check:agents-tool-use` script to `package.json`: `tsx scripts/checks/agent-determinism.ts && tsx scripts/checks/agent-tool-toggle-effect.ts && playwright test tests/agents-tool-use/` -- depends on T012, T013, T015, T019
-- [ ] T022 Add `check:agents-tool-use` to the `check:all` script in `package.json` -- depends on T021
-- [ ] T023 Run the full `quickstart.md` validation: the regression pass (re-run `specs/001-004`'s quickstart scenarios plus the pre-existing `npm run check:all`, confirm the RAG module and the home page's now-two-card grid are byte-for-byte unchanged) and this feature's 13 manual scenarios, then `npm run check:all` including `check:agents-tool-use` -- depends on all prior tasks
+- [X] T020 [P] Create `tests/a11y/agents-tool-use.spec.ts` (SC-005): keyboard-reachability + activation + distinct-accessible-name + axe assertions across the sample-question chips, custom-question input, every tool toggle, and the view-tab switcher on both views (FR-010) -- depends on T014, T017
+- [X] T021 Add the `check:agents-tool-use` script to `package.json`: `tsx scripts/checks/agent-determinism.ts && tsx scripts/checks/agent-tool-toggle-effect.ts && playwright test tests/agents-tool-use/` -- depends on T012, T013, T015, T019
+- [X] T022 Add `check:agents-tool-use` to the `check:all` script in `package.json` -- depends on T021
+- [X] T023 Run the full `quickstart.md` validation: the regression pass (re-run `specs/001-004`'s quickstart scenarios plus the pre-existing `npm run check:all`, confirm the RAG module and the home page's now-two-card grid are byte-for-byte unchanged) and this feature's 13 manual scenarios, then `npm run check:all` including `check:agents-tool-use` -- depends on all prior tasks
 
 ---
 

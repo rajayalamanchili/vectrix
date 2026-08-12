@@ -57,7 +57,7 @@ export function StrategyComparison() {
         {runs.map(({ strategy, run }) => (
           <div key={strategy.id} data-strategy-panel={strategy.id}>
             <Panel className="p-4">
-              <h3 className="font-display text-base text-ink-100">{strategy.name}</h3>
+              <h2 className="font-display text-base text-ink-100">{strategy.name}</h2>
               <Marginalia>
                 <p>{strategy.problem}</p>
                 <p className="mt-2 text-ink-500">{strategy.tradeoff}</p>

@@ -297,24 +297,73 @@ RAG (still out of scope, unchanged from Milestone 2).
 
 ---
 
-## Milestone 5: Second Concept Module (proves extensibility for real)
-**Spec**: not yet written -- do not begin until Milestone 4 DoD is met
-**Status**: Not started
+## Milestone 5: Second Concept Module -- Agents & Tool Use
+**Spec**: `specs/005-agents-tool-use/spec.md`
+**Status**: `/speckit.implement` has run (2026-08-12). All 23 tasks in
+`tasks.md` are complete. `npm run check:all` (extensibility, disclosure,
+determinism, `check:a11y` 66/66 [+7 new], `check:key-isolation`,
+`check:real-mode` 17/17, `check:parameter-exploration` 6/6,
+`check:real-mode-depth`, `check:agents-tool-use`
+[`agent-determinism.ts` + `agent-tool-toggle-effect.ts` + 2 Playwright
+specs]) and `npm run build`/`tsc`/`eslint` all pass clean. This is the
+platform's first genuinely new concept module since Milestone 1's RAG --
+it registers with exactly one import and one array entry in
+`concept-registry.ts`, and `check:extensibility`'s existing, unmodified
+scan now passes against a two-entry registry for the first time,
+actually proving Principle I rather than just asserting it. All three
+user stories are built and independently verified: the Walkthrough view
+(US1 -- sample-question chips plus a custom-question input, both driving
+one `runSingleToolCall` engine, with the tool-selection reasoning step
+disclosed as a simplified rule-based simulation); per-tool enable/disable
+toggles that visibly change the agent's path, including the
+never-an-error all-tools-disabled fallback (US2); and the Compare
+Strategies view showing Direct Answer, Single Tool Call, and a
+Multi-Step Reasoning Loop (capped at `MAX_ITERATIONS = 3`) run against
+the same question at once, where the loop's added "double-checking" step
+is real, visible overhead and its `"gave-up"` outcome (on the shipped
+"no tool fits" question) is a genuinely reachable failure mode, not a
+synthetic one (US3). The a11y pass (`tests/a11y/agents-tool-use.spec.ts`)
+caught one real defect on first run: `StrategyComparison.tsx`'s panel
+headings used `<h3>` directly under the page's `<h1>`, an axe
+heading-order violation, since this view (unlike RAG's own
+`VariantsComparison.tsx`, which the fix now matches) had no intervening
+`<h2>` -- fixed by promoting each panel's strategy-name heading to
+`<h2>`. The Milestone 1-4 regression pass (the full pre-existing
+`npm run check:all`, 66 total a11y tests including the pre-existing 59)
+found zero behavioral difference in the RAG module, and the home page
+now shows two concept cards. Milestone 5's Definition of Done is met.
 
-**Scope**: Add one genuinely new concept module (candidates: Prompt
-Engineering, Fine-Tuning, Agents/Tool Use, Context Window Management --
-to be chosen when this milestone is planned) using only the `ConceptModule`
-contract and one registry line, with zero edits to the RAG module or any
-core file outside the registry.
+**Scope**: One new concept module, Agents & Tool Use, added under
+`src/concepts/agents-tool-use/` using only the `ConceptModule` contract
+and one registry line -- a deterministic, disclosed simulation of an
+agent deciding whether and which of three non-overlapping tools
+(Calculator, Unit Converter, Knowledge Lookup) to call for a learner's
+question, in two views: Walkthrough (US1-2) and Compare Strategies (US3).
 
-**Definition of done** (draft, to be formalized in its own `spec.md`):
+**Definition of done**:
+- All acceptance scenarios in `specs/005-agents-tool-use/spec.md` User
+  Stories 1-3 pass -- **verified** (2026-08-12) via `tests/agents-tool-
+  use/`'s two Playwright specs, `tests/a11y/agents-tool-use.spec.ts`'s
+  seven tests, and this feature's 13 `quickstart.md` manual scenarios,
+  the last two of which (question-switch state reset, US3's
+  same-final-answer-more-steps comparison) were confirmed with ad hoc
+  scripts against the dev server in addition to the committed specs.
 - SC-002's automated extensibility check (built in Milestone 1) passes
-  for the new module without modification.
+  for the new module without modification -- **verified**:
+  `check:extensibility` passes against the now-two-entry registry.
 - The new module independently satisfies Constitution Principles II-V
   (disclosed simulation if any, purposeful interactivity, guided style,
   determinism) -- these aren't RAG-specific, they're platform-wide.
+  **Verified**: `check:disclosure` (4 disclosure elements: Walkthrough +
+  3 strategy panels, each independently marked), `agent-determinism.ts`
+  (10-run determinism across both the final-answer and gave-up paths,
+  SC-003), and `agent-tool-toggle-effect.ts` (SC-002's toggle-changes-
+  the-path guarantee) all pass.
 - Milestones 1-4's full acceptance-scenario suites still pass
-  (regression check).
+  (regression check) -- **verified**, zero behavioral difference found;
+  see Status above for the one real (accessibility, not behavioral)
+  defect this milestone's own a11y check caught and fixed in its own new
+  code.
 
 ---
 
@@ -356,14 +405,38 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.10.0 -- 2026-08-11, **Milestone 4's Definition of Done is
-fully met -- all 35 of 35 tasks in `specs/004-real-mode-depth/tasks.md`
+**Version**: 1.11.0 -- 2026-08-12, **Milestone 5's Definition of Done is
+fully met -- all 23 of 23 tasks in `specs/005-agents-tool-use/tasks.md`
 are complete.** `npm run check:all` (extensibility, disclosure,
-determinism, `check:a11y` 59/59, `check:key-isolation`, `check:real-mode`
-17/17, `check:parameter-exploration` 6/6, `check:real-mode-depth`) and
-`npm run build`/`tsc`/`eslint` all pass clean. Both user stories are
-built and independently verified: the "Compare Simulated vs Real" view
-(US1), and the session-wide cost/call ledger with a learner-configurable
+determinism, `check:a11y` 66/66, `check:key-isolation`, `check:real-mode`
+17/17, `check:parameter-exploration` 6/6, `check:real-mode-depth`,
+`check:agents-tool-use`) and `npm run build`/`tsc`/`eslint` all pass
+clean. This is the platform's second concept module -- Agents & Tool
+Use, registered with exactly one import and one array entry in
+`concept-registry.ts`, the first real proof of `check:extensibility`'s
+scan passing against a two-entry registry. All three user stories are
+built and independently verified: the Walkthrough view (US1, sample and
+custom questions through one disclosed rule-based tool-selection
+engine), per-tool enable/disable toggles that visibly change the agent's
+path (US2), and a Compare Strategies view showing Direct Answer, Single
+Tool Call, and a Multi-Step Reasoning Loop side by side, whose extra
+verify step and genuinely reachable "gave-up" outcome make its added
+cost legible rather than theoretical (US3). The new a11y spec caught one
+real defect on first run -- `StrategyComparison.tsx`'s panel headings
+skipped from `<h1>` straight to `<h3>`, an axe heading-order violation --
+fixed by promoting them to `<h2>`, matching RAG's own
+`VariantsComparison.tsx` precedent. The Milestone 1-4 regression pass
+(the full pre-existing `check:all`, 66 total a11y tests including the
+pre-existing 59) found zero behavioral difference in the RAG module.
+
+Supersedes 1.10.0 (2026-08-11, Milestone 4's Definition of Done fully
+met -- all 35 of 35 tasks in `specs/004-real-mode-depth/tasks.md`
+complete; `npm run check:all` (extensibility, disclosure, determinism,
+`check:a11y` 59/59, `check:key-isolation`, `check:real-mode` 17/17,
+`check:parameter-exploration` 6/6, `check:real-mode-depth`) and `npm run
+build`/`tsc`/`eslint` all passed clean. Both user stories were built and
+independently verified: the "Compare Simulated vs Real" view (US1), and
+the session-wide cost/call ledger with a learner-configurable
 $1.00-default warning threshold (US2), whose displayed total is verified
 by `scripts/checks/cost-ledger-sum.ts` to exactly match
 `costEstimateUsd()`'s own pre-call estimate against a live fixture run
@@ -371,11 +444,10 @@ by `scripts/checks/cost-ledger-sum.ts` to exactly match
 previously-shipped defect: `CompareSimulatedVsReal.tsx`'s Real half never
 issues a final-answer generate call (it compares retrieval rankings
 only), so its own pre-call estimate had been silently overcounting by
-one generate call per configuration -- fixed as part of this pass. The
+one generate call per configuration -- fixed as part of that pass. The
 Milestone 1-3 regression pass found zero behavioral difference now that
-every pre-existing real-call site routes through `createTrackedProvider`.
-
-Supersedes 1.9.0 (2026-08-10, Milestone 3's Definition of Done fully
+every pre-existing real-call site routes through `createTrackedProvider`.),
+1.9.0 (2026-08-10, Milestone 3's Definition of Done fully
 met -- all 31 of 31 tasks in `specs/003-parameter-exploration/
 tasks.md` complete; `npm run check:all` (extensibility, disclosure,
 determinism, `check:a11y` 48/48, `check:key-isolation`, `check:real-mode`
