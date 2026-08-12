@@ -76,7 +76,7 @@ export function ChunkingStep({
               onClick={() => onChunkingStrategy(opt.id)}
               aria-pressed={chunkingStrategy === opt.id}
               aria-label={opt.name}
-              className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+              className={`min-h-11 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                 chunkingStrategy === opt.id
                   ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
                   : "border-chart-line text-ink-500 hover:text-ink-300"

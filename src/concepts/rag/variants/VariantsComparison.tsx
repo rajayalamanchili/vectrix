@@ -393,7 +393,7 @@ export function VariantsComparison({
                     data-doc-chip={d.id}
                     onClick={() => handleDocSelect(d.id)}
                     aria-pressed={d.id === docId}
-                    className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
+                    className={`min-h-11 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
                       d.id === docId
                         ? "border-doc-teal bg-doc-teal/15 text-doc-teal"
                         : "border-chart-line text-ink-500 hover:text-ink-300"
@@ -420,7 +420,7 @@ export function VariantsComparison({
                     <button
                       key={q}
                       onClick={() => setQuery(q)}
-                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                      className={`min-h-11 inline-flex items-center rounded-full border px-3 py-1 text-xs transition-colors ${
                         q === query
                           ? "border-query-amber bg-query-amber/15 text-query-amber"
                           : "border-chart-line text-ink-500 hover:text-ink-300"
@@ -493,7 +493,7 @@ export function VariantsComparison({
           <div className="space-y-4">
             <button
               onClick={() => setBrowsing(true)}
-              className="text-xs text-ink-500 hover:text-ink-300"
+              className="min-h-11 inline-flex items-center text-xs text-ink-500 hover:text-ink-300"
             >
               ← Back to all variants
             </button>

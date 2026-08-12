@@ -392,14 +392,14 @@ export function PipelineWalkthrough({
         <button
           onClick={() => goTo(stepIndex - 1)}
           disabled={stepIndex === 0}
-          className="rounded border border-chart-line px-4 py-2 text-sm text-ink-300 disabled:opacity-30 hover:border-ink-500 transition-colors"
+          className="min-h-11 inline-flex items-center rounded border border-chart-line px-4 py-2 text-sm text-ink-300 disabled:opacity-30 hover:border-ink-500 transition-colors"
         >
           ← Back
         </button>
         <button
           onClick={() => goTo(stepIndex + 1)}
           disabled={stepIndex === STEPS.length - 1}
-          className="rounded bg-doc-teal/20 px-4 py-2 text-sm font-medium text-doc-teal disabled:opacity-30 hover:bg-doc-teal/30 transition-colors"
+          className="min-h-11 inline-flex items-center rounded bg-doc-teal/20 px-4 py-2 text-sm font-medium text-doc-teal disabled:opacity-30 hover:bg-doc-teal/30 transition-colors"
         >
           Next →
         </button>

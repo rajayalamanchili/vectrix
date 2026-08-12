@@ -94,7 +94,7 @@ export function RagConcept() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            className={`min-h-11 inline-flex items-center px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
               tab === t.id
                 ? "border-query-amber text-ink-100"
                 : "border-transparent text-ink-500 hover:text-ink-300"

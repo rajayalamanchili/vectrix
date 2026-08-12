@@ -15,7 +15,7 @@ jobs:
         run: |
           echo "checks=$(node -e "
             const pkg = require('./package.json');
-            const names = Object.keys(pkg.scripts).filter(k => k.startsWith('check:') && k !== 'check:all');
+            const names = Object.keys(pkg.scripts).filter(k => k.startsWith('check:') && k !== 'check:all' && k !== 'check:sc-coverage');
             console.log(JSON.stringify(names));
           ")" >> "$GITHUB_OUTPUT"
 
@@ -60,3 +60,12 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run build
+
+  sc-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run check:sc-coverage
