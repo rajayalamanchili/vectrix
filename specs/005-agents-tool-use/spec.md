@@ -144,7 +144,16 @@ visible without needing to run anything else.
 - What happens when two tools are both a reasonable fit for the same
   question? The deterministic selection rule still picks exactly one,
   consistently, every time that question runs (User Story 1, Acceptance
-  Scenario 3) -- there is no "randomly pick one" branch.
+  Scenario 3) -- there is no "randomly pick one" branch. Concretely,
+  whichever matching tool is declared first in the toolbox's fixed order
+  wins; this generalizes unchanged to three or more simultaneously
+  matching tools, not just the two-tool case.
+- What happens if a learner disables a tool while a run is already in
+  progress? This cannot occur -- every run is a single synchronous
+  computation (question + enabled tools in, a complete step sequence
+  out); there is no in-progress window during which a toggle change
+  could apply mid-run. A toggle change only ever takes effect on the
+  *next* run.
 
 ## Requirements *(mandatory)*
 
@@ -159,31 +168,53 @@ visible without needing to run anything else.
   deterministic and MUST visibly disclose it as a simplified simulation
   of a real model's reasoning, not real model output -- the same
   question against the same available tools MUST always produce an
-  identical step sequence.
+  identical step sequence. "Identical" means every step's content and
+  count match exactly, not merely the same number of steps or the same
+  final answer.
 - **FR-003**: The system MUST provide a fixed toolbox of at least 3
   distinct tools, each with non-overlapping capabilities and its own
-  plain-language description of what it does.
+  plain-language description of what it does. "Non-overlapping" means
+  each tool has its own primary recognition domain (e.g. arithmetic
+  expressions vs. unit-conversion phrases vs. known-fact lookups); a
+  crafted question may still syntactically match more than one tool's
+  domain, which is exactly the scenario the deterministic tie-breaking
+  rule (Edge Cases) exists to resolve.
 - **FR-004**: The system MUST let a learner enable or disable individual
-  tools before running the agent, and re-running the same question after
-  a change MUST reflect that change in the resulting step sequence.
+  tools before running the agent in the Walkthrough view (User Story 2;
+  the Compare Strategies view always uses the full default toolbox
+  regardless of this toggle state, per Assumptions), and re-running the
+  same question after a change MUST reflect that change in the resulting
+  step sequence -- concretely, a different tool is chosen, or the agent
+  falls back to a direct answer where it previously used a tool.
 - **FR-005**: When no available tool is a good enough match for a
   question, the system MUST have the agent answer directly rather than
   force a poor-fit tool call, and MUST disclose this "no tool needed"
-  reasoning as plainly as a tool-call step.
+  reasoning as plainly as a tool-call step. A "good enough match" is
+  binary, not a graded score: a tool either recognizes the question as
+  belonging to its domain or it doesn't -- there is no partial-credit
+  threshold a question must clear.
 - **FR-006**: The system MUST enforce a single, fixed, project-wide
   maximum (not a per-strategy limit) on the number of reasoning/tool-call
   iterations a single agent run may take; reaching that cap without a
   final answer MUST show a distinct "gave up" outcome rather than
   silently stopping. Only a strategy capable of looping can ever
   approach this cap -- a strategy that never loops satisfies it
-  trivially, by construction (Clarifications, 2026-08-11).
+  trivially, by construction (Clarifications, 2026-08-11). The exact
+  numeric value of this maximum is intentionally left as an
+  implementation-level constant (see plan.md/research.md), not fixed in
+  this document, the same way this project's other numeric defaults
+  (e.g. RAG's chunk-size defaults) live in implementation artifacts
+  rather than the spec.
 - **FR-007**: The system MUST provide at least 3 shipped sample
   questions spanning different tools (including at least one question no
   tool fits well) and MUST let a learner type their own custom question.
 - **FR-008**: The system MUST provide a comparison view showing at least
   3 distinct agent strategies for the same question at once, each with
   its own step flow and a plain-language explanation of the problem it
-  addresses and its trade-off.
+  addresses and its trade-off. The Single Tool Call strategy shown here
+  MUST produce results identical to the Walkthrough view (User Story 1)
+  for the same (question, toolbox) inputs -- the two views can never
+  silently diverge.
 - **FR-009**: Every simulated reasoning or tool-selection step MUST
   carry a visible disclosure that it is a simplified simulation, not a
   real model's output (Constitution Principle II) -- this disclosure
@@ -211,8 +242,15 @@ visible without needing to run anything else.
   (reasoning, tool call, observation, or final answer), the tool
   involved if any, and the content shown for that step.
 - **AgentRun**: the ordered list of `AgentStep`s produced for one
-  (question, set of enabled tools) combination, plus whether it ended in
-  a final answer or hit the iteration cap.
+  (question, set of enabled tools, strategy) combination, plus whether
+  it ended in a final answer or hit the iteration cap ("gave up") -- the
+  same step-list shape applies to both outcomes, so a gave-up run is not
+  a different shape of result, just a different ending. When the
+  multi-step reasoning loop finds a match only on a later attempt, the
+  earlier no-match reasoning steps remain in the list, so a
+  later-iteration match is visibly distinguished from a first-iteration
+  match by the presence of those preceding steps, not by a separate
+  flag.
 - **AgentStrategy**: one named approach shown in the comparison view --
   an id, a name, the problem it addresses, how it works, its trade-off,
   and the step flow it produces for the comparison view's question.
@@ -233,7 +271,9 @@ visible without needing to run anything else.
   time -- including when a run ends in the multi-step loop's "gave up"
   outcome, not only runs that reach a final answer (Clarifications,
   2026-08-11) -- verified by an automated check covering both the
-  single-tool-call and multi-step-loop strategies.
+  single-tool-call and multi-step-loop strategies. "Identical" is
+  checked field-by-field across every step's kind, tool, and content,
+  plus the run's overall outcome -- not just the step count.
 - **SC-004**: 100% of the module's simulated reasoning/tool-selection
   surfaces carry a visible simulation disclosure, verified by an
   automated check that fails if any is missing.
