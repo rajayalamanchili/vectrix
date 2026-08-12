@@ -37,7 +37,7 @@ prior milestone's own precedent.
 `concept-types.ts`'s doc comment prescribes (research.md's "Module
 folder structure" decision).
 
-- [ ] T001 Create the module's directory structure: `src/concepts/agents-tool-use/`, `src/concepts/agents-tool-use/lib/`, `src/concepts/agents-tool-use/walkthrough/`, `src/concepts/agents-tool-use/compare/`
+- [X] T001 Create the module's directory structure: `src/concepts/agents-tool-use/`, `src/concepts/agents-tool-use/lib/`, `src/concepts/agents-tool-use/walkthrough/`, `src/concepts/agents-tool-use/compare/`
 
 **Checkpoint**: Folder exists; no other file yet. `tech-stack.md`'s
 Milestone 5 amendment is already applied (see plan.md), so no separate

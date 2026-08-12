@@ -27,7 +27,7 @@ home-page/route code against more than one entry.
 
 1. **US1 clean tool match** (Acceptance Scenario 1) -- from the home
    page, open "Agents & Tool Use," and pick the sample question "What is
-   128 divided by 4?" Confirm you see, as separate legible steps: an
+   128 / 4?" Confirm you see, as separate legible steps: an
    initial reasoning step naming Calculator and why, a tool-call step, an
    observation step showing `32`, and a final answer stating "128 / 4 =
    32."

@@ -113,13 +113,19 @@ export interface SampleQuestion {
 }
 
 export const SAMPLE_QUESTIONS: SampleQuestion[] = [
-  { id: "division", text: "What is 128 divided by 4?", expectedToolId: "calculator" },
+  { id: "division", text: "What is 128 / 4?", expectedToolId: "calculator" },
   { id: "distance", text: "Convert 5 kilometers to miles", expectedToolId: "unit-converter" },
   { id: "capital", text: "What is the capital of France?", expectedToolId: "knowledge-lookup" },
   { id: "no-fit", text: "What's the weather like on Mars today?", expectedToolId: null },
 ];
 ```
 
+- `"division"`'s text uses the literal `/` symbol, not the word "divided
+  by" -- `CALCULATOR.match`'s regex (`contracts/tool-engine-contract.md`)
+  only recognizes a symbolic operator (`+ - x × * / ÷`) between two
+  numbers, not natural-language operator words, so the fixture must use
+  a symbol to actually exercise Calculator (caught by `/speckit-analyze`,
+  2026-08-11: the original word-form phrasing didn't match).
 - 4 shipped questions satisfy FR-007's "at least 3... including at least
   one no tool fits well." A learner's custom question (free-text input,
   FR-007's second half) is run through the exact same `Tool.match`/
