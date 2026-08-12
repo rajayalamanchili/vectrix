@@ -115,7 +115,7 @@ prior milestone.
 | III. Every Interaction Teaches Something | PASS | Tool toggles -> FR-004/SC-002 (an agent's behavior is bounded by what it's actually given, not what it theoretically knows). Sample-question/custom-question input -> FR-001/FR-007 (the core reasoning-tool-observation-answer loop, on any question, not just curated ones). Strategy comparison -> FR-008/SC-007 (trade-offs between approaches become a concrete, inspectable fact -- more steps for the same answer, or a genuine failure mode via the iteration cap -- not a caption to take on faith). |
 | IV. Guided, Not Just Dense | PASS | Both views follow the existing `TABS`-plus-`Marginalia`-style guided pattern `RagConcept.tsx` already established -- no new navigation paradigm. Numbered steps are used because the underlying process genuinely is sequential (reasoning -> tool call -> observation -> answer), the same justification RAG's own stepper already relies on. |
 | V. Deterministic By Default | PASS | Every `Tool.match` and every `AgentStrategy.run` is a pure function of its explicit arguments only -- no unseeded randomness, no wall-clock/UUID dependency in any simulated output (contrast with the cost ledger's `crypto.randomUUID()` entry ids, which this module has no equivalent of, since it introduces no ledger). `scripts/checks/agent-determinism.ts` verifies this against a live 10-run fixture, not by construction alone. |
-| VI. Spec Before Code | PASS | spec.md 005 is drafted (2026-08-11) before this plan; no `/speckit.clarify` pass has run yet for this feature -- see Complexity Tracking below for why this plan proceeds without one. |
+| VI. Spec Before Code | PASS | spec.md 005 is drafted (2026-08-11) before this plan; at the time this plan was written no `/speckit.clarify` pass had run yet for this feature -- see Complexity Tracking below for why this plan proceeded without one. **Update (2026-08-11, post-plan)**: a clarify pass subsequently ran and resolved three ambiguities (Walkthrough reveal timing, the iteration cap's scope, and SC-003's gave-up-path coverage) -- see spec.md's own `## Clarifications` section, dated the same day. |
 | VII. Accessible and Reduced-Motion by Default | PASS | Every control this module introduces (sample-question chips, custom-question input, per-tool toggles, view-tab switcher) is planned from the start against FR-010's keyboard-operable/distinct-accessible-name bar, verified by a new `tests/a11y/agents-tool-use.spec.ts` (SC-005) -- not a follow-up pass. Reuses the platform's existing global focus-indicator CSS (Milestone 1's Phase 6.5 work) rather than inventing new focus styling. |
 
 **Technology Constraints gate** (tech-stack.md): This plan adds an
@@ -211,3 +211,12 @@ permalinks did.
 `/speckit.analyze` before `/speckit.implement` and treat any flagged
 constitution violation -- including whether the Complexity Tracking
 justification above actually holds -- as blocking, not advisory.
+
+**Update (2026-08-11, post-plan)**: a `/speckit.clarify` pass did
+subsequently run against spec.md (see its `## Clarifications` section),
+resolving three questions -- none of which this plan's own scope had to
+change in response to, since `research.md`'s design decisions already
+anticipated all three answers (full-list rendering, a single global
+iteration cap, and SC-003 covering the gave-up path). The row above is
+retained as a historical record of the state at plan time, not as a
+currently-accurate "no clarify pass has run" claim.

@@ -51,10 +51,10 @@ task is needed for it here.
 data-model.md) that every one of the three user stories calls into.
 **No user-story work can begin until this phase is complete.**
 
-- [ ] T002 [P] Define core types in `src/concepts/agents-tool-use/lib/types.ts`: `Tool`, `ToolMatch`, `AgentStepKind`, `AgentStep`, `AgentRunOutcome`, `AgentRun`, `AgentStrategyId`, `AgentStrategy` (data-model.md)
-- [ ] T003 [P] Define the sample-question fixture in `src/concepts/agents-tool-use/lib/sampleQuestions.ts`: `SampleQuestion` interface + `SAMPLE_QUESTIONS` array (division/distance/capital/no-fit, data-model.md)
-- [ ] T004 Implement the toolbox in `src/concepts/agents-tool-use/lib/tools.ts`: `CALCULATOR` (regex + hand-rolled operand/operator arithmetic, no `eval`), `UNIT_CONVERTER` (regex + fixed km/mi, kg/lb, °C/°F conversion table + `convert()` helper), `KNOWLEDGE_LOOKUP` + `FACTS` (small fixed fact set), `DEFAULT_TOOLBOX` in fixed declaration/tie-break order (contracts/tool-engine-contract.md) -- depends on T002
-- [ ] T005 Implement tool selection and the three agent strategies in `src/concepts/agents-tool-use/lib/strategies.ts`: `selectTool()`, `MAX_ITERATIONS = 3`, `runDirectAnswer()`, `runSingleToolCall()`, `runMultiStepLoop()`, `bestEffortDirectAnswer()` helper, `STRATEGIES` array (contracts/tool-engine-contract.md, research.md's three strategy decisions) -- depends on T002, T004
+- [X] T002 [P] Define core types in `src/concepts/agents-tool-use/lib/types.ts`: `Tool`, `ToolMatch`, `AgentStepKind`, `AgentStep`, `AgentRunOutcome`, `AgentRun`, `AgentStrategyId`, `AgentStrategy` (data-model.md)
+- [X] T003 [P] Define the sample-question fixture in `src/concepts/agents-tool-use/lib/sampleQuestions.ts`: `SampleQuestion` interface + `SAMPLE_QUESTIONS` array (division/distance/capital/no-fit, data-model.md)
+- [X] T004 Implement the toolbox in `src/concepts/agents-tool-use/lib/tools.ts`: `CALCULATOR` (regex + hand-rolled operand/operator arithmetic, no `eval`), `UNIT_CONVERTER` (regex + fixed km/mi, kg/lb, °C/°F conversion table + `convert()` helper), `KNOWLEDGE_LOOKUP` + `FACTS` (small fixed fact set), `DEFAULT_TOOLBOX` in fixed declaration/tie-break order (contracts/tool-engine-contract.md) -- depends on T002
+- [X] T005 Implement tool selection and the three agent strategies in `src/concepts/agents-tool-use/lib/strategies.ts`: `selectTool()`, `MAX_ITERATIONS = 3`, `runDirectAnswer()`, `runSingleToolCall()`, `runMultiStepLoop()`, `bestEffortDirectAnswer()` helper, `STRATEGIES` array (contracts/tool-engine-contract.md, research.md's three strategy decisions) -- depends on T002, T004
 
 **Checkpoint**: The engine is pure, deterministic, and fully unit-testable. All three user stories can now build on it.
 
