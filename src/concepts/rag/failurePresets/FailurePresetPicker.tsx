@@ -33,7 +33,7 @@ export function FailurePresetPicker({
             onClick={() => onSelectPreset(preset)}
             className={`rounded border px-3 py-1.5 text-xs font-medium underline-offset-4 transition-colors ${
               preset.id === activePresetId
-                ? "border-danger bg-danger/15 text-danger"
+                ? "border-danger text-danger underline"
                 : "border-danger/40 text-danger hover:bg-danger/10"
             }`}
           >
