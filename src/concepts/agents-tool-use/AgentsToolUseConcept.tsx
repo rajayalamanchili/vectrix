@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { AgentWalkthrough } from "./walkthrough/AgentWalkthrough";
+import { StrategyComparison } from "./compare/StrategyComparison";
 
-const TABS = [{ id: "walkthrough", label: "Walkthrough" }] as const;
+const TABS = [
+  { id: "walkthrough", label: "Walkthrough" },
+  { id: "compare-strategies", label: "Compare Strategies" },
+] as const;
 
-/** Tab chrome mirroring RagConcept.tsx's TABS pattern (plan.md). Compare
- * Strategies is added as a second tab in a later phase (US3). */
+/** Tab chrome mirroring RagConcept.tsx's TABS pattern (plan.md). */
 export function AgentsToolUseConcept() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("walkthrough");
 
@@ -29,6 +32,7 @@ export function AgentsToolUseConcept() {
       </div>
 
       {tab === "walkthrough" && <AgentWalkthrough />}
+      {tab === "compare-strategies" && <StrategyComparison />}
     </div>
   );
 }

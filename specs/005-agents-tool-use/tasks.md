@@ -122,10 +122,10 @@ them is visible without needing to run anything else.
 
 ### Implementation for User Story 3
 
-- [ ] T016 [P] [US3] Create `StrategyComparison.tsx` in `src/concepts/agents-tool-use/compare/StrategyComparison.tsx`: question picker (reuses `SAMPLE_QUESTIONS`), runs each `STRATEGIES[i].run(question, DEFAULT_TOOLBOX)` (always the full default toolbox, independent of US2's toggle state -- spec.md Assumptions), renders one panel per strategy (`StepSequence` + name/problem/tradeoff text + `data-strategy-panel="<strategyId>"` + its own `data-simulated-disclosure="true"` marker) -- depends on T003, T005, T006
-- [ ] T017 [US3] Add the "Compare Strategies" tab to `AgentsToolUseConcept.tsx` in `src/concepts/agents-tool-use/AgentsToolUseConcept.tsx`, rendering `StrategyComparison` -- depends on T008, T016
-- [ ] T018 [US3] Extend `scripts/checks/simulated-disclosure.ts` with `checkSurface(...)` calls for `StrategyComparison`'s three strategy panels -- depends on T016 (edits the same file as T011)
-- [ ] T019 [P] [US3] Create `tests/agents-tool-use/strategy-comparison.spec.ts` (SC-007): open Compare Strategies with the `"no-fit"` sample question, assert `multi-step-loop`'s panel alone shows a `"gave-up"` outcome while `direct-answer` and `single-tool-call` both still show a completed final answer -- depends on T017
+- [X] T016 [P] [US3] Create `StrategyComparison.tsx` in `src/concepts/agents-tool-use/compare/StrategyComparison.tsx`: question picker (reuses `SAMPLE_QUESTIONS`), runs each `STRATEGIES[i].run(question, DEFAULT_TOOLBOX)` (always the full default toolbox, independent of US2's toggle state -- spec.md Assumptions), renders one panel per strategy (`StepSequence` + name/problem/tradeoff text + `data-strategy-panel="<strategyId>"` + its own `data-simulated-disclosure="true"` marker) -- depends on T003, T005, T006
+- [X] T017 [US3] Add the "Compare Strategies" tab to `AgentsToolUseConcept.tsx` in `src/concepts/agents-tool-use/AgentsToolUseConcept.tsx`, rendering `StrategyComparison` -- depends on T008, T016
+- [X] T018 [US3] Extend `scripts/checks/simulated-disclosure.ts` with `checkSurface(...)` calls for `StrategyComparison`'s three strategy panels -- depends on T016 (edits the same file as T011)
+- [X] T019 [P] [US3] Create `tests/agents-tool-use/strategy-comparison.spec.ts` (SC-007): open Compare Strategies with the `"no-fit"` sample question, assert `multi-step-loop`'s panel alone shows a `"gave-up"` outcome while `direct-answer` and `single-tool-call` both still show a completed final answer -- depends on T017
 
 **Checkpoint**: All three user stories are independently functional --
 the module fully satisfies spec.md's User Stories 1-3.

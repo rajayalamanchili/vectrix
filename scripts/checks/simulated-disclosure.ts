@@ -41,6 +41,14 @@
  * per contracts/automated-checks-contract.md's "check:disclosure
  * (extended)" rule, mirroring every prior milestone's grow-in-place
  * precedent rather than a new script.
+ *
+ * Extended again for 005-agents-tool-use's `StrategyComparison` (SC-004):
+ * each of its three `data-strategy-panel="<strategyId>"` panels must
+ * independently carry its own non-empty `data-simulated-disclosure`
+ * element (research.md's "Disclosure marker granularity" decision) --
+ * `splitStrategyPanels` isolates each panel's own markup slice first, so
+ * `checkSurface`'s single (non-global) regex match can't accidentally
+ * match a sibling panel's disclosure element instead of its own.
  */
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
@@ -53,6 +61,8 @@ import { CompareSimulatedVsReal } from "../../src/concepts/rag/compareReal/Compa
 import { openaiProviderConfig } from "../../src/concepts/rag/realMode/providerConfigs";
 import type { RealModeSession } from "../../src/concepts/rag/realMode/types";
 import { AgentWalkthrough } from "../../src/concepts/agents-tool-use/walkthrough/AgentWalkthrough";
+import { StrategyComparison } from "../../src/concepts/agents-tool-use/compare/StrategyComparison";
+import { STRATEGIES } from "../../src/concepts/agents-tool-use/lib/strategies";
 
 const ACTIVE_REAL_MODE_FIXTURE: RealModeSession = {
   active: true,
@@ -79,6 +89,22 @@ function checkSurface(name: string, markup: string): CheckFailure[] {
     return [{ location: name, message: "data-simulated-disclosure element has empty text content" }];
   }
   return [];
+}
+
+/**
+ * Splits `StrategyComparison`'s rendered markup into one slice per
+ * `data-strategy-panel="<id>"` panel, keyed by strategy id -- relies on
+ * panels rendering sequentially with no nested `data-strategy-panel`
+ * attribute, so each split segment is exactly that panel's own markup.
+ */
+function splitStrategyPanels(markup: string): Record<string, string> {
+  const parts = markup.split('data-strategy-panel="').slice(1);
+  const panels: Record<string, string> = {};
+  for (const part of parts) {
+    const idMatch = part.match(/^([\w-]+)"/);
+    if (idMatch) panels[idMatch[1]] = part;
+  }
+  return panels;
 }
 
 function checkApproximationCaveat(name: string, markup: string): CheckFailure[] {
@@ -230,6 +256,16 @@ const failures: CheckFailure[] = [
     ),
   ),
   ...checkSurface("AgentWalkthrough.tsx", renderToStaticMarkup(createElement(AgentWalkthrough))),
+  ...(() => {
+    const panels = splitStrategyPanels(renderToStaticMarkup(createElement(StrategyComparison)));
+    return STRATEGIES.flatMap(({ id }) => {
+      const panelMarkup = panels[id];
+      if (!panelMarkup) {
+        return [{ location: `StrategyComparison.tsx (${id} panel)`, message: `missing a data-strategy-panel="${id}" element` }];
+      }
+      return checkSurface(`StrategyComparison.tsx (${id} panel)`, panelMarkup);
+    });
+  })(),
 ];
 
 report("check:disclosure", failures);
