@@ -368,18 +368,60 @@ question, in two views: Walkthrough (US1-2) and Compare Strategies (US3).
 ---
 
 ## Milestone 6: Automated Test Suite + CI
-**Spec**: not yet written -- do not begin until Milestone 5 DoD is met
-**Status**: Not started
+**Spec**: `specs/006-test-suite-ci/spec.md`
+**Status**: `/speckit.implement` has run (2026-08-12). All 21 tasks in
+`tasks.md` are complete. `npm run check:all` (all 11 chained checks,
+including the new `check:smoke` and `check:sc-coverage`, 69/69 a11y
+tests) plus `npx tsc --noEmit`, `npx eslint .`, and `npm run build` all
+pass clean. A GitHub Actions workflow (`.github/workflows/ci.yml`) now
+gates every PR against `main` with a `discover-checks` job that reads
+`package.json`'s `check:*` script names into a matrix at run time (so a
+new module's check is CI-enforced the moment its script is added, no
+YAML edit), plus fixed `typecheck`/`lint`/`build`/`sc-coverage` jobs, all
+required status checks on `main`'s branch protection. The traceability
+audit (T011) found 33 `SC-###` entries across specs 001-005, 2 more
+genuinely-uncovered gaps than research.md's original 5 (002 SC-003, 003
+SC-001's own numeric claim) -- all 7 closed, all 33 now covered in
+`scripts/checks/lib/sc-traceability-manifest.ts` and enforced by
+`check:sc-coverage`, a hard merge-blocking gate. All three user stories
+were verified against real GitHub Actions runs, not just local
+`check:all`: US1's regression-blocks-merge/revert-restores-mergeability/
+no-false-positive scenarios via throwaway PRs #6 and #7 (T004-T005); US3's
+failing-check identifiability (T016) via PR #6's own original failing
+run, which showed `module-checks (check:a11y)` as an individually-named
+failing status alongside 13 green ones, its log pinpointing the exact
+spec/line/test/axe-rule with no ambiguity -- no check output needed
+improving. SC-005 (a real PR's workflow completes within 15 minutes) and
+SC-006 (identical results across 3 reruns of the same commit) were both
+verified for real via a third throwaway PR (#8, closed without merging):
+run 31649201895 completed in 2m8s, then two `gh run rerun`s of that same
+commit completed in 1m50s and 1m58s, all three concluding `success`.
+Building this feature's own `check:sc-coverage` gate surfaced no new
+application defects (this milestone adds no `src/concepts/` behavior),
+but re-verifying it live (T018 scenario 4) confirmed the gate is a real
+completeness check, not a trivial pass -- deleting one manifest entry
+made it fail, naming the exact missing `(specPath, scId)` pair, before
+being restored. Milestone 6's Definition of Done is met.
 
 **Scope**: Formalize the manual-Playwright verification used during
-Milestones 1-5 into an actual automated test suite (framework choice
-deferred, see tech-stack.md), wired into CI so every Success Criterion
-across all prior milestones regresses loudly instead of silently.
+Milestones 1-5 into an actual automated test suite (GitHub Actions +
+the project's existing Playwright/`tsx`-script precedent, see
+tech-stack.md), wired into CI so every Success Criterion across all
+prior milestones regresses loudly instead of silently.
 
-**Definition of done** (draft):
+**Definition of done**:
 - Every Success Criterion across Milestones 1-5 has a corresponding
-  automated test, not a manual verification note.
-- CI blocks merge on any regression.
+  automated test, not a manual verification note -- **verified**:
+  `scripts/checks/lib/sc-traceability-manifest.ts` maps all 33 `SC-###`
+  entries across specs 001-005 to committed test/check files, and
+  `npm run check:sc-coverage` (a hard merge-blocking gate, SC-001 of
+  this feature's own spec.md) enforces completeness on every PR.
+- CI blocks merge on any regression -- **verified**: `.github/workflows/
+  ci.yml`'s matrix and fixed jobs are all required status checks on
+  `main`'s branch protection from the moment each is added (no advisory
+  period), confirmed against three real throwaway PRs (#6, #7, #8) that
+  exercised a deliberate regression, a docs-only false-positive check,
+  and SC-005/SC-006's timing/determinism claims respectively.
 
 ---
 
@@ -405,16 +447,47 @@ Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.11.0 -- 2026-08-12, **Milestone 5's Definition of Done is
-fully met -- all 23 of 23 tasks in `specs/005-agents-tool-use/tasks.md`
-are complete.** `npm run check:all` (extensibility, disclosure,
+**Version**: 1.12.0 -- 2026-08-12, **Milestone 6's Definition of Done is
+fully met -- all 21 of 21 tasks in `specs/006-test-suite-ci/tasks.md`
+are complete.** `npm run check:all` (all 11 chained checks, including
+the new `check:smoke` and `check:sc-coverage`, 69/69 a11y tests) plus
+`npx tsc --noEmit`, `npx eslint .`, and `npm run build` all pass clean.
+A GitHub Actions workflow (`.github/workflows/ci.yml`) now gates every
+PR against `main`, with a `discover-checks` job reading `package.json`'s
+`check:*` script names into a matrix at run time -- extending Constitution
+Principle I's "one array entry, no core-file edit" extensibility
+guarantee into CI for the first time -- plus fixed `typecheck`/`lint`/
+`build`/`sc-coverage` jobs, all required status checks on `main`'s
+branch protection from the moment each was added. The traceability audit
+found 33 `SC-###` entries across specs 001-005, 2 more genuinely-
+uncovered gaps than the original 5-gap estimate (002 SC-003, 003 SC-001's
+own numeric claim) -- all 7 closed and all 33 now enforced by
+`check:sc-coverage`, a hard merge-blocking gate verified to genuinely
+detect gaps (a deleted manifest entry makes it fail, naming the exact
+missing pair) rather than trivially pass. All three user stories were
+verified against real GitHub Actions runs, not just local `check:all`:
+regression-blocks-merge, revert-restores-mergeability, and no-false-
+positive via throwaway PRs #6 and #7; failing-check identifiability via
+PR #6's own failing run, which showed one individually-named failing job
+alongside 13 green ones, its log pinpointing the exact spec/line/test/
+axe-rule with no ambiguity; SC-005 (workflow completes within 15 minutes)
+and SC-006 (identical results across 3 reruns of the same commit) via a
+third throwaway PR (#8): one run plus two `gh run rerun`s of that same
+commit all concluded `success` in 1m50s-2m8s each. This milestone adds
+no `src/concepts/` behavior -- the Milestone 1-5 regression pass (`npm
+run check:all` against unchanged concept-module code) found zero
+behavioral difference.
+
+Supersedes 1.11.0 (2026-08-12, Milestone 5's Definition of Done fully
+met -- all 23 of 23 tasks in `specs/005-agents-tool-use/tasks.md`
+are complete; `npm run check:all` (extensibility, disclosure,
 determinism, `check:a11y` 66/66, `check:key-isolation`, `check:real-mode`
 17/17, `check:parameter-exploration` 6/6, `check:real-mode-depth`,
-`check:agents-tool-use`) and `npm run build`/`tsc`/`eslint` all pass
+`check:agents-tool-use`) and `npm run build`/`tsc`/`eslint` all passed
 clean. This is the platform's second concept module -- Agents & Tool
 Use, registered with exactly one import and one array entry in
 `concept-registry.ts`, the first real proof of `check:extensibility`'s
-scan passing against a two-entry registry. All three user stories are
+scan passing against a two-entry registry. All three user stories were
 built and independently verified: the Walkthrough view (US1, sample and
 custom questions through one disclosed rule-based tool-selection
 engine), per-tool enable/disable toggles that visibly change the agent's
