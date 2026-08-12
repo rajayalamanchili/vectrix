@@ -8,6 +8,14 @@
 
 **Input**: User description: "Milestone 6"
 
+## Clarifications
+
+### Session 2026-08-12
+
+- Q: Should every check be merge-blocking from day one, or can newly-converted tests start as advisory until proven stable? → A: All checks are required/merge-blocking from the moment they're added — no advisory period.
+- Q: For Success Criteria previously verified by human visual judgment (e.g. Milestone 1's 375px-viewport readability check), should the automated replacement use pixel-diff screenshot comparison or structural/DOM assertions? → A: Structural/DOM assertions (no new tooling; no-horizontal-scroll, no-clipped-text style checks) — no pixel-diff baseline tooling introduced.
+- Q: Is the SC-005 full CI check-suite runtime target of 15 minutes per pull request correct, given the suite already includes 66+ Playwright a11y tests plus several module-specific check scripts? → A: Keep 15 minutes.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A regression is caught before it merges (Priority: P1)
@@ -175,7 +183,9 @@ to, without needing to open unrelated logs to find it.
   pull request that targets the main branch, without requiring a
   contributor to trigger it manually.
 - **FR-002**: System MUST prevent a pull request from being merged while
-  any check in the suite is failing.
+  any check in the suite is failing. Every check MUST be required/
+  merge-blocking as soon as it is added to the suite -- there is no
+  advisory or non-blocking trial period for newly-converted tests.
 - **FR-003**: System MUST re-run the check suite automatically whenever new
   commits are pushed to an open pull request, and update the pull request's
   mergeability accordingly.
@@ -187,7 +197,12 @@ to, without needing to open unrelated logs to find it.
   quickstart.md walkthrough, an ad hoc script run, or a note in roadmap.md
   describing a one-time human verification, that evidence MUST be replaced
   with (or supplemented by) a committed, automatically re-runnable test
-  covering the same scenario.
+  covering the same scenario. Where that prior verification relied on a
+  human's visual judgment (e.g. Milestone 1's 375px-viewport readability
+  check, SC-004), the automated replacement MUST use structural/DOM
+  assertions (e.g. no horizontal scroll, no clipped or overlapping text,
+  computed element widths within the viewport) rather than pixel-diff
+  screenshot comparison against a baseline image.
 - **FR-006**: The check suite MUST NOT require a real third-party API key
   or network access to a live model provider to run in CI; any scenario
   that genuinely requires a live provider call remains a manual, documented
@@ -261,10 +276,10 @@ to, without needing to open unrelated logs to find it.
   committed API key in CI" precedent for Real Mode's other automated
   checks.
 - Converting an existing manual/ad hoc verification into an automated test
-  is expected to require choosing a specific tool or pattern per scenario
-  (e.g. an automated browser check for Milestone 1's viewport-readability
-  criterion, SC-004); the specific technique is a `plan.md`/`tasks.md`
-  decision, not specified here.
+  is expected to require choosing a specific tool or pattern per scenario;
+  beyond the structural-assertion approach specified above for
+  visually-judged criteria, the remaining technique choices are a
+  `plan.md`/`tasks.md` decision, not specified here.
 - "Every Success Criterion" refers to Milestones 1-5 as they exist today;
   Milestone 6 does not retroactively expand or renegotiate what those
   milestones' Success Criteria say, only ensures each already-written one
