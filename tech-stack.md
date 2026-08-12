@@ -68,6 +68,9 @@ without amending it first fails the Constitution Check.
 | Sweep/permalink behavioral + accessibility checks (SC-001, SC-003, SC-005, 003-spec) | Two new Playwright specs under `tests/parameter-exploration/` (mocked provider, no real key in CI) plus a third `tests/a11y/` spec file, bundled under a new `npm run check:parameter-exploration` script added to `check:all` | Same "small purpose-built check, not a framework" philosophy as Milestones 1-2's additions. |
 | Cost-ledger-sum check (SC-002, 004-spec) | `scripts/checks/cost-ledger-sum.ts`, same pure-function/no-browser style as `determinism.ts`/`failure-presets.ts` | New for Milestone 4 -- runs a fake resolving provider through `createLedgerTrackingProvider()` for each configuration's real call sequence and asserts the resulting ledger total exactly matches `costEstimateUsd()`'s own pre-call estimate, so the displayed cumulative total can never silently drift from what was actually shown to the learner beforehand. See `004-real-mode-depth/contracts/cost-ledger-contract.md`. |
 | Comparison/cost-ledger behavioral + accessibility checks (SC-001, SC-003, SC-004, 004-spec) | Three new Playwright specs under `tests/real-mode-depth/` (mocked provider, no real key in CI) plus two new `tests/a11y/` spec files, bundled under a new `npm run check:real-mode-depth` script added to `check:all` | Same "small purpose-built check, not a framework" philosophy as Milestones 1-3's additions. |
+| Agent determinism / tool-toggle-effect checks (SC-002, SC-003, 005-spec) | Two new pure-function scripts, `scripts/checks/agent-determinism.ts` and `scripts/checks/agent-tool-toggle-effect.ts`, same no-browser style as `determinism.ts`/`failure-presets.ts`, plus a new `tests/agents-tool-use/` Playwright directory (SC-001, SC-007), bundled under a new `npm run check:agents-tool-use` script added to `check:all` | New, module-scoped rather than extending RAG's `determinism.ts` -- that script is explicitly RAG-scoped (imports from `src/concepts/rag/...`), and coupling an unrelated module's check to it would blur what each verifies, the opposite of Constitution Principle I. Same "small purpose-built check, not a framework" philosophy as every prior milestone's additions. See `005-agents-tool-use/research.md`'s "New, module-scoped determinism and tool-toggle-effect checks" decision. |
+| Agent disclosure check extension (SC-004, 005-spec) | `scripts/checks/simulated-disclosure.ts`, extended with `checkSurface` calls for `AgentWalkthrough` and each of `StrategyComparison`'s three strategy panels | Same script-grows-in-place precedent as every prior milestone's disclosure extension (FR-004's Real Mode rule, 004's comparison-caveat rule) -- one marker per rendered surface, not per individual step, mirroring the granularity `EmbeddingStep`/`GenerationStep` already established. |
+| Agent accessibility check (SC-005, 005-spec) | `tests/a11y/agents-tool-use.spec.ts`, same `npm run check:a11y` command (file-glob, no script change needed) | Extends, doesn't replace, the existing `check:a11y` suite -- covers this module's sample-question chips, custom-question input, tool toggles, and view-tab switcher. |
 
 ## Real Mode Depth behavior (Milestone 4)
 
@@ -76,6 +79,15 @@ without amending it first fails the Constitution Check.
 | Cost/call tracking | A `RealModeProvider` decorator, `createLedgerTrackingProvider()` (`src/concepts/rag/costLedger/trackedProvider.ts`), wrapping `embedBatch`/`generate` with the same signatures and appending one ledger entry per call that resolves successfully -- not a fetch-interception layer, and not a manual `onCallRecorded()` call inserted at each of the five existing real-call sites' internal control flow | Decided during `004-real-mode-depth`'s `/speckit.plan` (2026-08-10): every existing call site already constructs its own `RealModeProvider` at the point of use, so wrapping that one construction call is a one-line change per site rather than touching each site's internal orchestration logic -- the same "one function, one seam" swap-out pattern this file already uses for `mockGenerate()`'s isolation and the `RealModeProvider` interface itself. See `004-real-mode-depth/research.md`'s "Cost ledger as a `RealModeProvider` decorator" decision. |
 | Cost estimation | A flat, static per-call `PricingTable` (`embedCallUsd`/`generateCallUsd`, `src/concepts/rag/costLedger/pricing.ts`) derived once from published per-token rates and a documented assumed typical call size -- not live per-token metering of actual response `usage` fields | `openaiCompatibleProvider.ts`'s `fetch`-based adapter doesn't parse or expose token usage today, and `004-real-mode-depth/spec.md`'s Assumptions explicitly rule out a live pricing lookup or added complexity. Mirrors the existing app's own precedent: `realMode/callEstimate.ts`'s call-count formulas are already flat-per-call, not token-counted, for the same reason. See `004-real-mode-depth/research.md`'s "Flat per-call pricing, not per-token metering" decision. |
 | Comparison view's Simulated-side approximation | The Compare Simulated vs Real view's Simulated half always computes and shows naive RAG's simulated ranking, never a fabricated "simulated HyDE/RAG-Fusion" -- disclosed explicitly via a `data-simulated-disclosure`-style marker whenever a non-naive configuration is selected | `mockEmbedding.ts` has no text-generation capability (HyDE's hypothesis / RAG-Fusion's reworded queries are both generated by a real model call in this codebase), so there is no existing notion of a "simulated HyDE" to draw on -- synthesizing one would be a convincing-looking fake, the exact Constitution Principle II failure mode. See `004-real-mode-depth/research.md`'s "Simulated half for HyDE/RAG-Fusion configurations" decision. |
+
+## Agents & Tool Use behavior (Milestone 5)
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| Tool selection / "reasoning" simulation | Rule-based, binary-confidence matchers -- each shipped `Tool` owns a pure `match(question): ToolMatch \| null` function (regex/keyword test against its own non-overlapping domain), no continuous similarity score | Tool selection is a categorical classification into non-overlapping domains (calculator vs. unit-converter vs. knowledge-lookup), not a nearest-neighbor problem the way RAG's retrieval is -- reusing `mockEmbedding.ts`'s cosine-similarity approach here would produce a plausible-looking but ungrounded confidence number for a problem that isn't actually a similarity search. A binary rule-based matcher is also directly disclosable in plain language, satisfying FR-002/FR-009's simulation-disclosure requirement more legibly than a numeric score would. See `005-agents-tool-use/research.md`'s "Rule-based, binary-confidence tool matching" decision. |
+| Tie-breaking (two tools both fit) | Fixed toolbox declaration order -- first enabled, matching tool in `DEFAULT_TOOLBOX`'s array order wins, deterministically, every time | Directly satisfies spec.md's Edge Case ("two tools both a reasonable fit... the deterministic selection rule still picks exactly one, consistently") and Constitution Principle V, without needing a second scoring dimension on top of the binary matcher above. |
+| Toolbox | Three genuinely-computing, non-overlapping tools -- Calculator (real arithmetic via a small hand-rolled operand/operator extraction, no `eval`), Unit Converter (real conversion math over a small fixed unit table), Knowledge Lookup (a small, fixed, shipped fact set) | Implements spec.md's Assumptions directly: tools that can be computed honestly return genuinely correct results, and a knowledge tool draws from a curated fact set, the same "curated, not live" precedent RAG's sample documents already established. No new npm dependency (no math-expression-parser library) -- the supported expression shape is deliberately narrow (one operator, two operands) rather than a general arithmetic parser. |
+| Multi-step reasoning loop / iteration cap | A fixed `MAX_ITERATIONS = 3` -- on a tool match, one extra "verify" reasoning step before finalizing (real, inspectable overhead vs. the single-tool-call strategy); on no match, up to `MAX_ITERATIONS` re-reasoning attempts before a distinct `"gave-up"` outcome, never a fabricated answer | Makes User Story 3's "added cost is legible, not hidden" acceptance scenario concretely true (same answer, genuinely more steps) and makes FR-006's iteration-cap edge case reachable by a real shipped sample question, not only a synthetic test fixture. See `005-agents-tool-use/research.md`'s "multi-step loop" decision for the full reachability argument. |
 
 ## Explicitly not yet decided (do not pre-select)
 
@@ -99,7 +111,20 @@ without amending it first fails the Constitution Check.
   (see the table above) but not built; revisit only if a future
   milestone's spec explicitly requires provider choice in the UI.
 
-**Version**: 1.5.0 -- 2026-08-10, added Real Mode Depth's AI/data-behavior
+**Version**: 1.6.0 -- 2026-08-11, added Agents & Tool Use's AI-behavior
+and testing decisions during `005-agents-tool-use`'s `/speckit.plan` --
+rule-based binary-confidence tool matchers (not a continuous similarity
+score) with fixed-declaration-order tie-breaking, a three-tool toolbox
+that computes genuinely correct results (no fabricated observations), a
+fixed `MAX_ITERATIONS = 3` multi-step-loop design whose added cost and
+iteration-cap "gave up" outcome are both real and reachable rather than
+synthetic, and two new module-scoped pure-function checks
+(`agent-determinism.ts`, `agent-tool-toggle-effect.ts`) plus a new
+`tests/agents-tool-use/` Playwright directory. No new npm dependency
+introduced. This is also the first amendment made on behalf of a second
+concept module rather than extending the RAG module.
+
+Supersedes 1.5.0 (2026-08-10, added Real Mode Depth's AI/data-behavior
 and testing decisions during `004-real-mode-depth`'s `/speckit.plan` --
 a `RealModeProvider` decorator (`createLedgerTrackingProvider`) for
 cost/call tracking instead of a fetch-interception layer, a flat
@@ -107,9 +132,8 @@ static per-call `PricingTable` instead of per-token metering, the
 comparison view's Simulated-side decision to always show naive RAG's
 ranking rather than fabricate a "simulated HyDE/RAG-Fusion," and one new
 pure-function check (`cost-ledger-sum.ts`) plus a new `tests/real-mode-
-depth/` Playwright directory. No new npm dependency introduced.
-
-Supersedes 1.4.0 (2026-08-10, added Parameter Exploration's
+depth/` Playwright directory. No new npm dependency introduced), 1.4.0
+(2026-08-10, added Parameter Exploration's
 AI/data-behavior and testing decisions during `003-parameter-exploration`'s
 `/speckit.plan` -- hand-built SVG+native-`<button>` sweep chart (no
 charting library), `URLSearchParams`-based permalinks (no encoding
