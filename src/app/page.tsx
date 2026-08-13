@@ -16,7 +16,8 @@ export default function Home() {
             Each module below is a small, interactive chart you can pull apart --
             drag a slider, watch a query land in embedding space, compare
             architectures side by side. Start with Retrieval-Augmented
-            Generation; more concepts will chart their own course here over time.
+            Generation or Agents &amp; Tool Use; more concepts will chart their
+            own course here over time.
           </p>
         </div>
       </section>
