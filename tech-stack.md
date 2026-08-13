@@ -1,8 +1,8 @@
 # Tech Stack
 
 **Project**: Vectrix
-**Status**: Locked for Milestones 1-6
-**Last amended**: 2026-08-12
+**Status**: Locked for Milestones 1-7
+**Last amended**: 2026-08-13
 
 ## Purpose
 
@@ -99,10 +99,17 @@ without amending it first fails the Constitution Check.
 | Merge-blocking policy | Every check is a required status check from the moment it's added -- no advisory/non-blocking trial period, confirmed via `006-test-suite-ci`'s `/speckit-clarify` pass | Matches the constitution's "regressions caught loudly not silently" stance; flaky-test risk is handled by fixing flakiness at its source (spec.md Edge Cases), not a probationary period that would weaken SC-002's "every time, no manual step" guarantee. |
 | Visually-judged Success Criteria (e.g. viewport readability) | Structural/DOM assertions (no horizontal scroll, no clipped text, minimum touch-target size) rather than pixel-diff screenshot-baseline comparison, confirmed via `006-test-suite-ci`'s `/speckit-clarify` pass | No new tooling/dependency, fits the existing Playwright-only precedent; pixel-diff baseline maintenance was judged too large a commitment (and a new dependency requiring its own tech-stack.md amendment) for the one criterion (Milestone 1 SC-004) that needed it. |
 
+## Deployment (Milestone 7)
+
+| Concern | Choice | Rationale |
+|---|---|---|
+| Platform | Vercel, connected directly to `github.com/rajayalamanchili/vectrix` via its native Git integration -- no new npm dependency, no `vercel.json`, no `next.config.ts` change | Built by the Next.js team; builds and serves the app's existing default (non-static-export) output with zero configuration, including the `<Suspense>`-wrapped `useSearchParams()` page Milestone 3 added. Free "Hobby" tier is sufficient for a low-traffic learning tool. Chosen explicitly in conversation before this milestone's planning pass. See `007-vercel-deployment/research.md` item 1. |
+| Staging environment | Vercel's default per-branch deployment behavior -- `main` set as the Production Branch (Vercel's own default), and the `staging` branch left to receive Vercel's automatically-generated, stable branch-alias URL, updated in place on every push. No custom domain, no second Vercel project, no paid-plan "Environments" feature | Already satisfies a distinct, stable staging URL that updates independently of production the moment the repo is connected -- zero additional configuration beyond pushing to a `staging` branch. See `007-vercel-deployment/research.md` item 2. |
+| Deploy-time secrets | None configured -- Vercel's Environment Variables panel is left empty | The app has no server-side secret today (`process.env` is unreferenced anywhere in `src/`); Real Mode API keys stay client-side and in-memory only, per Milestone 2's existing design. See `007-vercel-deployment/research.md` item 3. |
+| Deployment verification | Manual, documented walkthrough (`007-vercel-deployment/quickstart.md`) against the real, live URLs -- not a new automated check script or Playwright spec added to `check:all` | This feature's subject is infrastructure outside the repository's own runtime, with no local dev server or mocked response to test against -- the same reasoning already applied to Milestone 2's live end-to-end OpenAI run, which `roadmap.md` records as a manual task rather than a CI-enforced script. See `007-vercel-deployment/research.md` item 4. |
+
 ## Explicitly not yet decided (do not pre-select)
 
-- Deployment target -- deferred until there's a reason to deploy rather
-  than run locally / in Claude Code.
 - Any backend, database, or auth -- out of scope per spec.md Assumptions
   until a future module genuinely needs one (e.g. a concept requiring
   saved learner progress). Milestone 2 (Real Mode) confirms this stays
@@ -116,7 +123,21 @@ without amending it first fails the Constitution Check.
   (see the table above) but not built; revisit only if a future
   milestone's spec explicitly requires provider choice in the UI.
 
-**Version**: 1.7.0 -- 2026-08-12, added Automated Test Suite + CI's
+**Version**: 1.8.0 -- 2026-08-13, added Deployment's platform decisions
+during `007-vercel-deployment`'s `/speckit.plan` -- Vercel, connected
+directly to the existing GitHub repo via its native Git integration, as
+the deployment platform (zero-config for the app's existing default
+Next.js output, no new npm dependency, no `vercel.json`); `main` as the
+Production Branch with the `staging` branch left to Vercel's default
+stable per-branch alias URL for the staging environment, rather than a
+custom domain or a second project; no deploy-time secrets configured,
+since the app has none server-side; and manual, documented verification
+against the live deployments rather than a new automated check script,
+matching the precedent Milestone 2 already set for anything requiring a
+live external service. This resolves the "Deployment target" item this
+file had listed under "Explicitly not yet decided" since version 1.0.0.
+
+Supersedes 1.7.0 (2026-08-12, added Automated Test Suite + CI's
 platform and testing decisions during `006-test-suite-ci`'s
 `/speckit.plan` -- GitHub Actions as the CI platform, a matrix-driven
 job structure generated from `package.json`'s `check:*` script names
@@ -129,9 +150,9 @@ pixel-diff screenshots) for previously visually-judged criteria. No new
 npm dependency introduced -- the workflow file is repository
 configuration, not a package. This also resolves the "project-wide,
 CI-wired testing framework" item this file had explicitly deferred to
-Milestone 6 scope since version 1.1.0.
+Milestone 6 scope since version 1.1.0.),
 
-Supersedes 1.6.0 (2026-08-11, added Agents & Tool Use's AI-behavior
+1.6.0 (2026-08-11, added Agents & Tool Use's AI-behavior
 and testing decisions during `005-agents-tool-use`'s `/speckit.plan` --
 rule-based binary-confidence tool matchers (not a continuous similarity
 score) with fixed-declaration-order tie-breaking, a three-tool toolbox
