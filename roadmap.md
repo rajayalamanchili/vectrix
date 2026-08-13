@@ -461,6 +461,14 @@ no application code, only the two intentional copy fixes above (stale
 "starting with Retrieval-Augmented Generation" phrasing in the homepage
 hero and page metadata, both predating this milestone) used as the
 US1/US2 verification payloads. Milestone 7's Definition of Done is met.
+**Now that both environments are live, the workflow going forward is
+staging-first**: push or merge every future change to `staging` first
+and let it deploy/verify there, then merge `staging` into `main` (or
+push the same change to `main`) to promote it to production -- not
+push directly to `main`. (The direct-to-`main` pushes used during this
+milestone's own US1 bootstrap, before a comparable staging state
+existed, were a one-time exception to establish the first production
+deploy, not the standing pattern.)
 
 **Scope**: Stand up two persistent environments for the app as it
 exists today -- a production deployment tracking `main`, and a staging
