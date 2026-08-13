@@ -425,6 +425,48 @@ prior milestones regresses loudly instead of silently.
 
 ---
 
+## Milestone 7: Deployment -- Vercel Staging & Production
+**Spec**: `specs/007-vercel-deployment/spec.md` (not yet written --
+per Constitution Principle VI, `/speckit.specify` and `/speckit.plan`
+run before implementation begins, same discipline as every milestone
+since Milestone 1).
+**Status**: Not started. Vercel was chosen as the deployment target in
+conversation on 2026-08-13 -- this milestone is that decision's
+follow-through, superseding the "deferred until there's a reason to
+deploy" stance this file and `tech-stack.md` both held through Milestone
+6. No code, config, or Vercel project exists yet.
+
+**Scope**: Stand up two persistent environments for the app as it
+exists today -- a production deployment tracking `main`, and a staging
+deployment tracking a long-lived `staging` branch -- both on Vercel,
+both redeploying automatically on push via Vercel's native GitHub
+integration. Infrastructure/config only; no new application behavior.
+
+**Why this comes after Milestone 6**: CI already gates every PR against
+`main` before merge (Milestone 6); deployment should sit on top of a
+`main` that's already continuously verified, not the other way around.
+
+**Definition of done** (draft -- to be finalized in `spec.md`):
+- A production deployment is live at a stable URL and redeploys
+  automatically on every push to `main`.
+- A staging deployment is live at its own stable URL and redeploys
+  automatically on every push to a `staging` branch, so changes are
+  reviewable in a real deployed environment before merging to `main`.
+- No secret is required at build or deploy time -- the app has none
+  server-side today (`process.env` is unreferenced anywhere in `src/`),
+  and this milestone must not introduce one without amending
+  `tech-stack.md`'s existing key-isolation stance first.
+- `tech-stack.md`'s "Explicitly not yet decided" section is amended to
+  record Vercel as the chosen platform, with rationale, as part of this
+  feature's `/speckit.plan`.
+
+**Explicitly not included**: a custom domain (default `*.vercel.app`
+URLs are sufficient to start), any server-side environment-variable
+secret, any change to the app's existing client-side-only Real Mode
+architecture.
+
+---
+
 ## Out of current roadmap (not planned, not rejected)
 - Real embedding-model / LLM API integration for the *default* experience
   -- Milestone 2 (Real Mode) adds this as an explicit opt-in layer, but
@@ -440,14 +482,20 @@ prior milestones regresses loudly instead of silently.
   public deployment context emerges.
 - Saved learner progress / accounts -- would require a backend, which is
   explicitly out of scope until a concrete module needs it.
-- Deployment target selection -- deferred until there's a reason to
-  deploy.
 
 Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.12.0 -- 2026-08-12, **Milestone 6's Definition of Done is
+**Version**: 1.13.0 -- 2026-08-13, added Milestone 7 (Deployment --
+Vercel Staging & Production) as a planned, not-yet-started milestone --
+Vercel was chosen as the deployment target in conversation, resolving
+the "deployment target selection" item this file previously listed
+under "Out of current roadmap." No spec, plan, or code exists yet for
+this milestone; per Constitution Principle VI, `/speckit.specify` runs
+next, not implementation directly.
+
+Supersedes 1.12.0 (2026-08-12, **Milestone 6's Definition of Done is
 fully met -- all 21 of 21 tasks in `specs/006-test-suite-ci/tasks.md`
 are complete.** `npm run check:all` (all 11 chained checks, including
 the new `check:smoke` and `check:sc-coverage`, 69/69 a11y tests) plus
