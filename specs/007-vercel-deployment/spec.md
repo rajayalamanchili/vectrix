@@ -31,8 +31,8 @@ without anyone running a deploy command by hand.
 
 1. **Given** a change has been merged to `main`, **When** the merge
    completes, **Then** the production site reflects that change at a
-   stable, publicly reachable URL within a few minutes, with no manual
-   deploy step.
+   stable, publicly reachable URL within 10 minutes (see SC-001), with
+   no manual deploy step.
 2. **Given** the production site is live and unchanged, **When** no new
    merge has happened, **Then** the site remains reachable and stable
    indefinitely (no manual "keep-alive" action required).
@@ -64,8 +64,8 @@ the staging URL, while the production URL remains unchanged.
 
 1. **Given** a change has been pushed to the `staging` branch, **When** the
    push completes, **Then** the staging site reflects that change at its
-   own stable URL, distinct from the production URL, within a few minutes,
-   with no manual deploy step.
+   own stable URL, distinct from the production URL, within 10 minutes
+   (see SC-002), with no manual deploy step.
 2. **Given** a change is live on staging but not yet merged to `main`,
    **When** the production site is checked, **Then** production does not
    reflect that change -- the two environments are independent.
