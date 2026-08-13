@@ -40,10 +40,10 @@ Vercel dashboard and git branches, not `src/` files.
 **Purpose**: Prepare the one piece of repository state this feature
 needs before any deployment can be exercised.
 
-- [ ] T001 Create and push a long-lived `staging` branch from the tip of
+- [X] T001 Create and push a long-lived `staging` branch from the tip of
       `main`: `git checkout main && git pull && git checkout -b staging
       && git push -u origin staging`.
-- [ ] T002 [P] Run `npm run build` locally once to confirm the app still
+- [X] T002 [P] Run `npm run build` locally once to confirm the app still
       produces a clean default Next.js build with no `output: 'export'`
       or other config change needed (research.md item 1) -- this is the
       same build Vercel will run.
@@ -59,17 +59,17 @@ existing -- neither environment can be exercised before it does.
 **⚠️ CRITICAL**: No user story task can be verified until this phase is
 complete.
 
-- [ ] T003 Import `github.com/rajayalamanchili/vectrix` into Vercel as a
+- [X] T003 Import `github.com/rajayalamanchili/vectrix` into Vercel as a
       new Project (Vercel dashboard → Add New → Project → import from
       GitHub). Requires a Vercel account with GitHub authorized -- a
       manual, account-owning-human step per quickstart.md's
       Prerequisites; it cannot be performed from repository tooling.
-- [ ] T004 Confirm the new Vercel Project's Settings → Git → Production
+- [X] T004 Confirm the new Vercel Project's Settings → Git → Production
       Branch is set to `main` (Vercel's own default for a newly
       connected repository -- confirm, don't change, per
       contracts/deployment-environments-contract.md's branch mapping
       table) (FR-003).
-- [ ] T005 [P] Confirm the new Vercel Project's Settings → Environment
+- [X] T005 [P] Confirm the new Vercel Project's Settings → Environment
       Variables is empty for both the Production and Preview scopes,
       satisfying FR-005/SC-004 before any deployment runs.
 
@@ -89,15 +89,15 @@ by hand.
 
 ### Implementation for User Story 1
 
-- [ ] T006 [US1] Note the current time, then push or merge a small,
+- [X] T006 [US1] Note the current time, then push or merge a small,
       visible change to `main` (e.g. a copy edit) and, in the Vercel
       dashboard's Deployments list, confirm a new Production deployment
       starts within moments with no manual trigger (FR-001).
-- [ ] T007 [US1] Once that deployment completes, visit the production
+- [X] T007 [US1] Once that deployment completes, visit the production
       URL shown in the Vercel dashboard and confirm the change is
       visible within 10 minutes of the push noted in T006 (SC-001,
       FR-003).
-- [ ] T008 [US1] With no further pushes made, revisit the production URL
+- [X] T008 [US1] With no further pushes made, revisit the production URL
       again after a few minutes and confirm it remains reachable and
       unchanged (Acceptance Scenario 2 -- no manual "keep-alive" action
       required).
@@ -118,19 +118,19 @@ URL remains unchanged.
 
 ### Implementation for User Story 2
 
-- [ ] T009 [US2] Note the current time, then push a small, visible
+- [X] T009 [US2] Note the current time, then push a small, visible
       change to the `staging` branch only (not merged to `main`) and, in
       the Vercel dashboard, confirm a new deployment starts automatically
       for that branch (FR-002).
-- [ ] T010 [US2] Once complete, find `staging`'s auto-generated,
+- [X] T010 [US2] Once complete, find `staging`'s auto-generated,
       stable branch-alias URL in the Vercel dashboard's Deployments list
       (research.md item 2) and confirm it reflects the change within 10
       minutes of the push noted in T009 (SC-002, FR-003).
-- [ ] T011 [US2] Revisit the production URL from Phase 3 and confirm it
+- [X] T011 [US2] Revisit the production URL from Phase 3 and confirm it
       does **not** reflect the staging-only change -- the two
       environments update independently, each at its own distinct URL
       (FR-004, SC-003, Acceptance Scenario 2).
-- [ ] T012 [US2] Merge the `staging` branch's change into `main` and
+- [X] T012 [US2] Merge the `staging` branch's change into `main` and
       confirm the production URL updates to match, without needing to
       push the change again (Acceptance Scenario 3, exercising Phase 3's
       T006-T007 mechanism a second time).
@@ -151,18 +151,18 @@ successful build while the failure is visibly reported.
 
 ### Implementation for User Story 3
 
-- [ ] T013 [US3] Push a deliberate build-breaking change (e.g. a
+- [X] T013 [US3] Push a deliberate build-breaking change (e.g. a
       TypeScript syntax error) to the `staging` branch -- deliberately
       using `staging`, not `main`, to avoid rehearsing this against the
       real production branch (quickstart.md Scenario 2 note).
-- [ ] T014 [US3] Once the build fails, revisit the staging URL and
+- [X] T014 [US3] Once the build fails, revisit the staging URL and
       confirm it continues serving its last successful build -- no
       downtime, no broken or partial page (FR-006, SC-005).
-- [ ] T015 [US3] In the Vercel dashboard's deployment list for the
+- [X] T015 [US3] In the Vercel dashboard's deployment list for the
       `staging` branch, confirm the failed attempt is clearly marked as
       failed, visible without needing to reproduce the build locally
       (FR-007).
-- [ ] T016 [US3] Revert the breaking change and push again to `staging`;
+- [X] T016 [US3] Revert the breaking change and push again to `staging`;
       confirm a new deployment succeeds and the staging URL reflects the
       reverted (working) state again.
 
@@ -176,13 +176,13 @@ failure handling is confirmed safe on the lower-stakes branch.
 **Purpose**: Close out the milestone's own record-keeping once every
 story above is verified.
 
-- [ ] T017 [P] Re-confirm Vercel Project Settings → Environment
+- [X] T017 [P] Re-confirm Vercel Project Settings → Environment
       Variables is still empty for both scopes after all deployments
       above (final SC-004 re-check, now that real deployments have run).
-- [ ] T018 [P] Run `npm run check:all` once locally to confirm zero
+- [X] T018 [P] Run `npm run check:all` once locally to confirm zero
       regression in the existing app -- expected to pass unchanged,
       since this feature added no `src/` code.
-- [ ] T019 Update `roadmap.md`'s Milestone 7 entry: replace the "Not
+- [X] T019 Update `roadmap.md`'s Milestone 7 entry: replace the "Not
       started" Status with the actual production and staging URLs and
       verification date, following the same Status-narrative pattern
       Milestones 1-6 used, and bump `roadmap.md`'s Version footer.
