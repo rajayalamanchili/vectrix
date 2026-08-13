@@ -15,7 +15,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Vectrix",
   description:
-    "An interactive, extensible playground for learning AI engineering concepts hands-on -- starting with Retrieval-Augmented Generation.",
+    "An interactive, extensible playground for learning AI engineering concepts hands-on -- Retrieval-Augmented Generation and Agents & Tool Use, with more to come.",
 };
 
 export default function RootLayout({
