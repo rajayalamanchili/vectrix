@@ -425,6 +425,74 @@ prior milestones regresses loudly instead of silently.
 
 ---
 
+## Milestone 7: Deployment -- Vercel Staging & Production
+**Spec**: `specs/007-vercel-deployment/spec.md`
+**Status**: `/speckit.implement` has run (2026-08-13). All 19 tasks in
+`tasks.md` are complete. The Vercel project is connected to
+`github.com/rajayalamanchili/vectrix` via its native GitHub integration,
+Production Branch is `main` (Vercel's own default, confirmed not
+changed), and no Environment Variable is configured in either the
+Production or Preview scope, reconfirmed after all deployments below
+ran (SC-004/FR-005). Production is live at
+`https://vectrix-seven.vercel.app`; staging is live at its own stable
+branch-alias URL, `https://vectrix-git-staging-rajayalamanchilis-projects.vercel.app`.
+All three user stories were verified against real deployments, not
+simulated: a push directly to `main` (commit `aad65df`) produced an
+automatic production deploy, live within seconds, confirmed reachable
+and unchanged afterward with no manual step (US1); a push to `staging`
+only (commit `ba05648`) deployed independently -- staging reflected the
+change while production did not -- and merging `staging` into `main`
+then promoted it to production without a second push (US2); and a
+deliberate build-breaking commit (`7eb3764`, a TypeScript syntax error)
+pushed to `staging` left the previous successful build live and
+unaffected throughout, with the failure clearly reported as `state:
+"failure"` in GitHub's Deployments API rather than requiring a local
+repro, and a revert (`f36d5be`) restored staging to a working deploy
+(US3). Verifying US2 surfaced one real defect against spec.md's own
+Edge Cases section (line 119-121): Vercel's default Deployment
+Protection puts a Vercel-SSO login wall in front of Preview
+deployments, contradicting the spec's explicit "staging is reachable by
+anyone who has its URL, the same as production" requirement -- fixed by
+disabling Deployment Protection for Preview deployments in the Vercel
+project's settings. `npm run check:all` (all module checks, 106 a11y
+tests), `npx tsc --noEmit`, and `npx eslint .` all pass clean on the
+feature branch, confirming zero `src/` regression -- this feature added
+no application code, only the two intentional copy fixes above (stale
+"starting with Retrieval-Augmented Generation" phrasing in the homepage
+hero and page metadata, both predating this milestone) used as the
+US1/US2 verification payloads. Milestone 7's Definition of Done is met.
+
+**Scope**: Stand up two persistent environments for the app as it
+exists today -- a production deployment tracking `main`, and a staging
+deployment tracking a long-lived `staging` branch -- both on Vercel,
+both redeploying automatically on push via Vercel's native GitHub
+integration. Infrastructure/config only; no new application behavior.
+
+**Why this comes after Milestone 6**: CI already gates every PR against
+`main` before merge (Milestone 6); deployment should sit on top of a
+`main` that's already continuously verified, not the other way around.
+
+**Definition of done** (draft -- to be finalized in `spec.md`):
+- A production deployment is live at a stable URL and redeploys
+  automatically on every push to `main`.
+- A staging deployment is live at its own stable URL and redeploys
+  automatically on every push to a `staging` branch, so changes are
+  reviewable in a real deployed environment before merging to `main`.
+- No secret is required at build or deploy time -- the app has none
+  server-side today (`process.env` is unreferenced anywhere in `src/`),
+  and this milestone must not introduce one without amending
+  `tech-stack.md`'s existing key-isolation stance first.
+- `tech-stack.md`'s "Explicitly not yet decided" section is amended to
+  record Vercel as the chosen platform, with rationale, as part of this
+  feature's `/speckit.plan`.
+
+**Explicitly not included**: a custom domain (default `*.vercel.app`
+URLs are sufficient to start), any server-side environment-variable
+secret, any change to the app's existing client-side-only Real Mode
+architecture.
+
+---
+
 ## Out of current roadmap (not planned, not rejected)
 - Real embedding-model / LLM API integration for the *default* experience
   -- Milestone 2 (Real Mode) adds this as an explicit opt-in layer, but
@@ -440,14 +508,42 @@ prior milestones regresses loudly instead of silently.
   public deployment context emerges.
 - Saved learner progress / accounts -- would require a backend, which is
   explicitly out of scope until a concrete module needs it.
-- Deployment target selection -- deferred until there's a reason to
-  deploy.
 
 Keeping this section explicit documents what was considered and
 deliberately deferred, rather than leaving it ambiguous whether it was
 forgotten.
 
-**Version**: 1.12.0 -- 2026-08-12, **Milestone 6's Definition of Done is
+**Version**: 1.14.0 -- 2026-08-13, **Milestone 7's Definition of Done is
+fully met -- all 19 of 19 tasks in `specs/007-vercel-deployment/
+tasks.md` are complete.** Production is live at
+`https://vectrix-seven.vercel.app` (tracking `main`) and staging at its
+own stable branch-alias URL,
+`https://vectrix-git-staging-rajayalamanchilis-projects.vercel.app`
+(tracking `staging`), both verified against real deployments: a direct
+push to `main` auto-deployed to production with no manual trigger
+(US1); a push to `staging` only deployed independently of production,
+and merging `staging` into `main` then promoted it to production
+without a second push (US2); and a deliberate build-breaking push to
+`staging` left the prior successful build live throughout, with the
+failure clearly reported via GitHub's Deployments API, and a revert
+restored a working deploy (US3). Verifying US2 caught a real defect
+against spec.md's own Edge Cases -- Vercel's default Deployment
+Protection was gating the staging URL behind a Vercel-SSO login wall,
+contradicting the spec's explicit "reachable by anyone with the URL"
+requirement -- fixed by disabling Deployment Protection for Preview
+deployments. `npm run check:all`, `npx tsc --noEmit`, and `npx eslint .`
+all pass clean, confirming zero `src/` regression from this
+infrastructure-only milestone.
+
+Supersedes 1.13.0 (2026-08-13, added Milestone 7 (Deployment --
+Vercel Staging & Production) as a planned, not-yet-started milestone --
+Vercel was chosen as the deployment target in conversation, resolving
+the "deployment target selection" item this file previously listed
+under "Out of current roadmap." No spec, plan, or code exists yet for
+this milestone; per Constitution Principle VI, `/speckit.specify` runs
+next, not implementation directly.),
+
+1.12.0 (2026-08-12, **Milestone 6's Definition of Done is
 fully met -- all 21 of 21 tasks in `specs/006-test-suite-ci/tasks.md`
 are complete.** `npm run check:all` (all 11 chained checks, including
 the new `check:smoke` and `check:sc-coverage`, 69/69 a11y tests) plus
