@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { conceptRegistry } from "@/lib/concept-registry";
 
-export default function Home( {
+export default function Home() {
   return (
     <main className="flex-1">
       <section className="relative overflow-hidden border-b border-chart-line bg-chart-grid">
